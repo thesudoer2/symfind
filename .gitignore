@@ -1,0 +1,36 @@
+#### Ignore all files that have no extension
+# Ignore all
+*
+
+# Undo ignore for files that have extension
+!*.*
+
+# Undo ignore for directories
+!*/
+
+# Undo ignore for LICENSE
+!LICENSE
+
+# Plain text files
+*.txt
+
+# Binary files
+*.bin
+*.out
+
+# Build directories
+build/
+Build/
+Release/
+Debug/
+RelWithDebInfo/
+target/
+
+# Editors
+*.swp
+.vscode/
+
+# Logs
+*.out
+*.log
+compile_commands.*
