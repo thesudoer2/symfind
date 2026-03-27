@@ -11,6 +11,7 @@
 #include "JsonParser.h"
 
 #define PRUNE_BIND_MOUNTS_CONFIG "prune_bind_mounts"
+#define DEBUG_PRUNING_CONFIG "debug_pruning"
 #define PRUNE_FS_CONFIG "prunefs"
 #define PRUNE_PATHS_CONFIG "prunepaths"
 #define PRUNE_NAMES_CONFIG "prunenames"
@@ -19,11 +20,13 @@ namespace FindSymbol
 {
 
 std::unordered_set<std::string> ConfigParser::_valid_configs{PRUNE_BIND_MOUNTS_CONFIG,
+                                                             DEBUG_PRUNING_CONFIG,
                                                              PRUNE_FS_CONFIG,
                                                              PRUNE_PATHS_CONFIG,
                                                              PRUNE_NAMES_CONFIG};
 
-ConfigParser::ConfigParser(const std::string &config_file, std::string *err_msg) noexcept : _prune_bind_mounts(false)
+ConfigParser::ConfigParser(const std::string &config_file, std::string *err_msg) noexcept
+    : _prune_bind_mounts(false), _debug_pruning(false)
 {
     bool parser_res = parse(config_file, err_msg);
     if (!parser_res)
@@ -157,6 +160,15 @@ std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, 
         }
         _prune_bind_mounts = res.value();
     }
+    else if (key == DEBUG_PRUNING_CONFIG)
+    {
+        auto res = to_bool(value);
+        if (!res.has_value())
+        {
+            return {false, res.error()};
+        }
+        _debug_pruning = res.value();
+    }
     else if (key == PRUNE_FS_CONFIG)
     {
         break_string(_prunefs, value);
@@ -176,6 +188,11 @@ std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, 
 bool ConfigParser::get_prune_bind_mounts() const noexcept
 {
     return _prune_bind_mounts;
+}
+
+bool ConfigParser::get_debug_pruning() const noexcept
+{
+    return _debug_pruning;
 }
 
 const std::vector<std::string> &ConfigParser::get_prune_fs() const noexcept

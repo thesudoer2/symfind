@@ -16,11 +16,11 @@ public:
     ConfigParser() noexcept = delete;
     ~ConfigParser() noexcept = default;
 
-    ConfigParser(const ConfigParser &) noexcept = delete;
-    ConfigParser(ConfigParser &&) noexcept = delete;
+    ConfigParser(const ConfigParser &) noexcept = default;
+    ConfigParser(ConfigParser &&) noexcept = default;
 
-    ConfigParser &operator=(const ConfigParser &) noexcept = delete;
-    ConfigParser &operator=(ConfigParser &&) noexcept = delete;
+    ConfigParser &operator=(const ConfigParser &) noexcept = default;
+    ConfigParser &operator=(ConfigParser &&) noexcept = default;
 
     explicit ConfigParser(const std::string &config_file, std::string *err_msg) noexcept;
 
@@ -35,12 +35,14 @@ private:
 
 public:
     __nodiscard bool get_prune_bind_mounts() const noexcept;
+    __nodiscard bool get_debug_pruning() const noexcept;
     __nodiscard const std::vector<std::string> &get_prune_fs() const noexcept;
     __nodiscard const std::vector<std::string> &get_prune_paths() const noexcept;
     __nodiscard const std::vector<std::string> &get_prune_names() const noexcept;
 
 private:
     bool _prune_bind_mounts;
+    bool _debug_pruning;
     std::vector<std::string> _prunefs;
     std::vector<std::string> _prunepaths;
     std::vector<std::string> _prunenames;

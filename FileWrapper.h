@@ -71,6 +71,8 @@ public: // NOLINT(readability-redundant-access-specifiers)
 
     __nodiscard Errno_t get_errno() const noexcept;
 
+    __nodiscard std::string get_file_path() const noexcept;
+
 public: // NOLINT(readability-redundant-access-specifiers)
     static expected<FileWrapper::Offset_t, FileWrapper::Errno_t> seek(FileWrapper& file, Offset_t offset,
             int destination) noexcept;

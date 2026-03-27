@@ -4,11 +4,16 @@
 #include <cstdio>
 #include <cstring>
 
+#include <string>
 #include <tuple>
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <tl/expected.hpp>
+
+#define MAX_PATH_LEN 1024
+#define PROC_FD_PATH "/proc/self/fd/"
 
 namespace FindSymbol
 {
@@ -42,7 +47,7 @@ expected<std::int32_t, FileWrapper::Errno_t> FileWrapper::get_fd() const noexcep
     return (fd == -1) ? unexpected<Errno_t>(errno) : expected<std::int32_t, Errno_t>(fd);
 }
 
-const FILE* FileWrapper::get_cfp() const noexcept
+const FILE *FileWrapper::get_cfp() const noexcept
 {
     return _fp.get();
 }
@@ -73,6 +78,33 @@ bool FileWrapper::is_open() const noexcept
 FileWrapper::Errno_t FileWrapper::get_errno() const noexcept
 {
     return _last_errno;
+}
+
+std::string FileWrapper::get_file_path() const noexcept
+{
+    expected<std::int32_t, FileWrapper::Errno_t> fdex = get_fd();
+    if (!fdex.has_value())
+    {
+        return {};
+    }
+
+    std::string fd_path;
+    fd_path.resize(MAX_PATH_LEN);
+
+    std::string file_path;
+    file_path.resize(MAX_PATH_LEN);
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
+    std::snprintf(fd_path.data(), MAX_PATH_LEN, "%s/%d", PROC_FD_PATH, fdex.value());
+
+    ssize_t len = readlink(fd_path.c_str(), file_path.data(), MAX_PATH_LEN - 1);
+    if (len == -1)
+    {
+        return {};
+    }
+
+    file_path[len] = '\0';
+    return file_path;
 }
 
 expected<FileWrapper::Offset_t, FileWrapper::Errno_t> FileWrapper::seek(FileWrapper &file,
@@ -112,7 +144,8 @@ bool FileWrapper::read(const FileWrapper &file, void *ptr, size_t len, off_t off
             return false;
         }
 
-        ptr = reinterpret_cast<char *>(ptr) + read_bytes; // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        ptr = reinterpret_cast<char *>(ptr) + read_bytes;
         len -= read_bytes;
         offset += read_bytes;
     }
