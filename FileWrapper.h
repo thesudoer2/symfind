@@ -11,7 +11,7 @@
 
 #include "Global.h"
 
-namespace FindSymbol
+namespace SymFind
 {
 
 template<typename V, typename E>
@@ -35,7 +35,6 @@ private:
     };
 
     using FilePtr = std::unique_ptr<FILE, FileCloser>;
-    using IOState = std::bitset<4>;
 
 public:
     using Errno_t = std::int32_t;
@@ -79,7 +78,7 @@ public: // NOLINT(readability-redundant-access-specifiers)
 
     static expected<Offset_t, Errno_t> tellp(const FileWrapper& file) noexcept;
 
-    static bool read(const FileWrapper& file, void *ptr, size_t len, off_t offset) noexcept;
+    static bool read(const FileWrapper& file, void *ptr, size_t len, Offset_t offset) noexcept;
 
     static expected<std::int64_t, Errno_t> get_file_size(FileWrapper& file) noexcept;
 
@@ -89,4 +88,4 @@ private:
     bool _is_open = false;
 };
 
-} // namespace FindSymbol
+} // namespace SymFind

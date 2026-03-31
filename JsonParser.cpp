@@ -8,7 +8,7 @@
 
 #include "FileWrapper.h"
 
-namespace FindSymbol
+namespace SymFind
 {
 
 // -- JsonItem
@@ -83,7 +83,7 @@ bool JsonParser::parse(std::string *err_msg) noexcept
     FileWrapper file;
     if (bool open_res = file.open(_json_path, "r"); !open_res)
     {
-        std::cerr << "FindSymbol::JsonParser -- Opening file failed: " << std::strerror(file.get_errno()) << '\n';
+        std::cerr << "SymFind::JsonParser -- Opening file failed: " << std::strerror(file.get_errno()) << '\n';
         exit(EXIT_FAILURE);
     }
 
@@ -170,4 +170,4 @@ JsonItems JsonParser::items() const noexcept
     return JsonItems(_json_data);
 }
 
-} // namespace FindSymbol
+} // namespace SymFind

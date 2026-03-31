@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace FindSymbol::FSHelper
+namespace SymFind::FSHelper
 {
 
 /**
@@ -45,4 +45,4 @@ extern void string_list_dir_path_sort(std::vector<std::string> &list);
  */
 extern bool string_list_contains_dir_path(const std::vector<std::string> *list, size_t *idx, const std::string &path);
 
-} // namespace FindSymbol::FSHelper
+} // namespace SymFind::FSHelper

@@ -15,7 +15,7 @@
 #define MAX_PATH_LEN 1024
 #define PROC_FD_PATH "/proc/self/fd/"
 
-namespace FindSymbol
+namespace SymFind
 {
 
 FileWrapper::FileWrapper() noexcept = default;
@@ -111,6 +111,7 @@ expected<FileWrapper::Offset_t, FileWrapper::Errno_t> FileWrapper::seek(FileWrap
                                                                         Offset_t offset,
                                                                         int destination) noexcept
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
     Offset_t ret = std::fseek(file._fp.get(), offset, destination);
     return (ret == -1) ? unexpected<Errno_t>(errno) : expected<Offset_t, Errno_t>(ret);
 }
@@ -121,7 +122,7 @@ expected<FileWrapper::Offset_t, FileWrapper::Errno_t> FileWrapper::tellp(const F
     return (ret == -1) ? unexpected<Errno_t>(errno) : expected<Offset_t, Errno_t>(ret);
 }
 
-bool FileWrapper::read(const FileWrapper &file, void *ptr, size_t len, off_t offset) noexcept
+bool FileWrapper::read(const FileWrapper &file, void *ptr, size_t len, Offset_t offset) noexcept
 {
     if (!file.is_open())
     {
@@ -132,6 +133,7 @@ bool FileWrapper::read(const FileWrapper &file, void *ptr, size_t len, off_t off
 
     while (len > 0)
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
         ssize_t read_bytes = pread(fd, ptr, len, offset);
         if (read_bytes == -1 && errno == EINTR)
         {
@@ -167,4 +169,4 @@ expected<std::int64_t, FileWrapper::Errno_t> FileWrapper::get_file_size(FileWrap
     return seek_res ? expected<std::int64_t, Errno_t>{seek_res.value()} : unexpected<Errno_t>(seek_res.error());
 }
 
-} // namespace FindSymbol
+} // namespace SymFind

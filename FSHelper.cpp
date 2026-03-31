@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-namespace FindSymbol::FSHelper
+namespace SymFind::FSHelper
 {
 
 // NOLINTBEGIN(readability-identifier-length)
@@ -62,4 +62,4 @@ bool string_list_contains_dir_path(const std::vector<std::string> *list, size_t 
 }
 // NOLINTEND(readability-identifier-length)
 
-} // namespace FindSymbol
+} // namespace SymFind

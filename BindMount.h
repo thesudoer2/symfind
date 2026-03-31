@@ -5,12 +5,13 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "Config.h"
 #include "FileWrapper.h"
 #include "Singleton.h"
 
-namespace FindSymbol
+namespace SymFind
 {
 
 using DeviceMajor = std::uint32_t;
@@ -44,7 +45,7 @@ private:
     using MountEntries = std::multimap<std::pair<DeviceMajor, DeviceMinor>, Mount>;
 
 private: // NOLINT(readability-redundant-access-specifiers)
-    explicit BindMount(ConfigParser conf) noexcept;
+    explicit BindMount(std::shared_ptr<ConfigParser> conf) noexcept;
 
 private: // NOLINT(readability-redundant-access-specifiers)
     void init_bind_mount() noexcept;
@@ -71,7 +72,7 @@ private: // NOLINT(readability-redundant-access-specifiers)
     std::vector<std::string> _bind_mount_paths;
 
     /* Configuration */
-    ConfigParser _conf;
+    std::shared_ptr<ConfigParser> _conf;
 };
 
-} // namespace FindSymbol
+} // namespace SymFind

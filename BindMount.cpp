@@ -14,10 +14,10 @@
 #include "FSHelper.h"
 #include "FileWrapper.h"
 
-namespace FindSymbol
+namespace SymFind
 {
 
-BindMount::BindMount(ConfigParser conf) noexcept : _conf(std::move(conf))
+BindMount::BindMount(std::shared_ptr<ConfigParser> conf) noexcept : _conf(std::move(conf))
 {
     init_bind_mount();
 }
@@ -60,7 +60,7 @@ void BindMount::init_bind_mount() noexcept
 // NOLINTBEGIN
 void BindMount::rebuild_bind_mount_paths() noexcept
 {
-    if (_conf.get_debug_pruning())
+    if (_conf->get_debug_pruning())
     {
         fprintf(stderr, "Rebuilding bind_mount_paths:\n");
     }
@@ -70,7 +70,7 @@ void BindMount::rebuild_bind_mount_paths() noexcept
     {
         return;
     }
-    if (_conf.get_debug_pruning())
+    if (_conf->get_debug_pruning())
     {
         std::fprintf(stderr, "Matching bind_mount_paths:\n");
     }
@@ -93,7 +93,7 @@ void BindMount::rebuild_bind_mount_paths() noexcept
             // If there are two that are equal, prefer the one with lowest ID.
             if (mount_entry.root.size() > other.root.size() && mount_entry.root.find(other.root) == 0)
             {
-                if (_conf.get_debug_pruning())
+                if (_conf->get_debug_pruning())
                 {
                     std::fprintf(stderr,
                                  " => adding `%s' (root `%s' is a child of `%s', mounted on `%s')\n",
@@ -108,7 +108,7 @@ void BindMount::rebuild_bind_mount_paths() noexcept
 
             if (mount_entry.root == other.root && mount_entry.id > other.id)
             {
-                if (_conf.get_debug_pruning())
+                if (_conf->get_debug_pruning())
                 {
                     std::fprintf(stderr,
                                  " => adding `%s' (duplicate of mount point `%s')\n",
@@ -121,7 +121,7 @@ void BindMount::rebuild_bind_mount_paths() noexcept
         }
     }
 
-    if (_conf.get_debug_pruning())
+    if (_conf->get_debug_pruning())
     {
         std::fprintf(stderr, "...done\n");
     }
@@ -173,14 +173,14 @@ std::optional<BindMount::MountEntries> BindMount::read_mount_entries() noexcept
                 c = std::toupper(c);
             }
             mount_entry.pruned_due_to_fs_type =
-                (std::find(_conf.get_prune_fs().begin(), _conf.get_prune_fs().end(), fs_type_upper) !=
-                 _conf.get_prune_fs().end());
+                (std::find(_conf->get_prune_fs().begin(), _conf->get_prune_fs().end(), fs_type_upper) !=
+                 _conf->get_prune_fs().end());
             size_t prunepath_index = 0; // Search the entire list every time.
-            mount_entry.pruned_due_to_path = FSHelper::string_list_contains_dir_path(&_conf.get_prune_paths(),
+            mount_entry.pruned_due_to_path = FSHelper::string_list_contains_dir_path(&_conf->get_prune_paths(),
                                                                                      &prunepath_index,
                                                                                      mount_entry.mount_point.c_str());
             mount_entries.emplace(std::make_pair(mount_entry.dev_major, mount_entry.dev_minor), mount_entry);
-            if (_conf.get_debug_pruning())
+            if (_conf->get_debug_pruning())
             {
                 std::fprintf(stderr,
                              " `%s' (%d on %d) is `%s' of `%s' (%u:%u), type `%s' (pruned_fs=%d, pruned_path=%d)\n",
@@ -209,7 +209,7 @@ std::optional<BindMount::MountEntries> BindMount::read_mount_entries() noexcept
     for (auto &[key, me] : mount_entries)
     {
         me.to_remove = find_whether_under_pruned(me.id, id_to_mount, &id_to_pruned_cache);
-        if (_conf.get_debug_pruning() && me.to_remove)
+        if (_conf->get_debug_pruning() && me.to_remove)
         {
             std::fprintf(stderr, " `%s' is, or is under, a pruned file system; removing\n", me.mount_point.c_str());
         }
@@ -377,4 +377,4 @@ std::string BindMount::read_mount_line(FileWrapper &file) noexcept
 }
 // NOLINTEND
 
-} // namespace FindSymbol
+} // namespace SymFind

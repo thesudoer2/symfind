@@ -4,7 +4,6 @@
 #include <cstdlib>
 
 #include <string>
-#include <tuple>
 
 #include "FileWrapper.h"
 #include "Global.h"
@@ -15,18 +14,24 @@
 #define PRUNE_FS_CONFIG "prunefs"
 #define PRUNE_PATHS_CONFIG "prunepaths"
 #define PRUNE_NAMES_CONFIG "prunenames"
+#define DATABASE_PATH_CONFIG "database_path"
 
-namespace FindSymbol
+#ifndef DATABASE_DEFAULT_PATH
+#define DATABASE_DEFAULT_PATH "/var/lib/symfind/symfind.db"
+#endif
+
+namespace SymFind
 {
 
 std::unordered_set<std::string> ConfigParser::_valid_configs{PRUNE_BIND_MOUNTS_CONFIG,
                                                              DEBUG_PRUNING_CONFIG,
                                                              PRUNE_FS_CONFIG,
                                                              PRUNE_PATHS_CONFIG,
-                                                             PRUNE_NAMES_CONFIG};
+                                                             PRUNE_NAMES_CONFIG,
+                                                             DATABASE_PATH_CONFIG};
 
 ConfigParser::ConfigParser(const std::string &config_file, std::string *err_msg) noexcept
-    : _prune_bind_mounts(false), _debug_pruning(false)
+    : _prune_bind_mounts(false), _debug_pruning(false), _database_path(DATABASE_DEFAULT_PATH)
 {
     bool parser_res = parse(config_file, err_msg);
     if (!parser_res)
@@ -104,7 +109,41 @@ std::pair<bool, std::string> ConfigParser::extract_config(const JsonParser &json
         }
     }
 
+    generate_conf_block();
+
     return {true, ""};
+}
+
+/* Store a string list to OBSTACK */
+void generate_conf_block_string_list(std::string *obstack, const std::vector<std::string> *strings)
+{
+    for (const auto &str : *strings)
+    {
+        *obstack += str;
+        *obstack += '\0';
+    }
+    *obstack += '\0';
+}
+
+void ConfigParser::generate_conf_block() noexcept
+{
+    // NOLINTNEXTLINE
+    auto CONST = [this]<typename T, std::size_t N>(const T(&s)[N]) { _conf_block.append(s, N); };
+
+    _conf_block.clear();
+
+	CONST("prune_bind_mounts");
+    /* Add two NUL bytes after the value */
+	_conf_block.append(_prune_bind_mounts ? "1\0" : "0\0", 3);
+
+	CONST("prunefs");
+	generate_conf_block_string_list(&_conf_block, &_prunefs);
+
+	CONST("prunenames");
+	generate_conf_block_string_list(&_conf_block, &_prunenames);
+
+	CONST("prunepaths");
+	generate_conf_block_string_list(&_conf_block, &_prunepaths);
 }
 
 expected<bool, std::string> to_bool(const std::string &str)
@@ -169,6 +208,14 @@ std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, 
         }
         _debug_pruning = res.value();
     }
+    else if (key == DATABASE_PATH_CONFIG)
+    {
+        if (!value.empty())
+        {
+            return {true, ""};
+        }
+        _database_path = value;
+    }
     else if (key == PRUNE_FS_CONFIG)
     {
         break_string(_prunefs, value);
@@ -195,6 +242,11 @@ bool ConfigParser::get_debug_pruning() const noexcept
     return _debug_pruning;
 }
 
+const std::string &ConfigParser::get_database_path() const noexcept
+{
+    return _database_path;
+}
+
 const std::vector<std::string> &ConfigParser::get_prune_fs() const noexcept
 {
     return _prunefs;
@@ -210,4 +262,9 @@ const std::vector<std::string> &ConfigParser::get_prune_names() const noexcept
     return _prunenames;
 }
 
-} // namespace FindSymbol
+const std::string &ConfigParser::get_conf_block() const noexcept
+{
+    return _conf_block;
+}
+
+} // namespace SymFind

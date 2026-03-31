@@ -7,7 +7,7 @@
 #include <nlohmann/json_fwd.hpp>
 #include <tl/expected.hpp>
 
-namespace FindSymbol
+namespace SymFind
 {
 
 class JsonItems;
@@ -118,4 +118,4 @@ private:
     const JsonParser::Json_t &_json; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
-} // namespace FindSymbol
+} // namespace SymFind
