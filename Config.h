@@ -13,7 +13,7 @@ namespace SymFind
 class ConfigParser final
 {
 public:
-    ConfigParser() noexcept = delete;
+    ConfigParser() noexcept = default;
     ~ConfigParser() noexcept = default;
 
     ConfigParser(const ConfigParser &) noexcept = default;
@@ -22,16 +22,14 @@ public:
     ConfigParser &operator=(const ConfigParser &) noexcept = default;
     ConfigParser &operator=(ConfigParser &&) noexcept = default;
 
-    explicit ConfigParser(const std::string &config_file, std::string *err_msg) noexcept;
-
-private:
     bool parse(const std::string &config_file, std::string *err_msg) noexcept;
 
+private:
     std::pair<bool, std::string> validate_config(const JsonParser &json_data) const noexcept;
 
     std::pair<bool, std::string> extract_config(const JsonParser &json_data) noexcept;
 
-    std::pair<bool, std::string> store_config(const std::string &key, std::string value) noexcept;
+    std::pair<bool, std::string> store_config(const std::string &key, const std::string &value) noexcept;
 
     void generate_conf_block() noexcept;
 
@@ -45,8 +43,8 @@ public:
     __nodiscard const std::string &get_conf_block() const noexcept;
 
 private:
-    bool _prune_bind_mounts;
-    bool _debug_pruning;
+    bool _prune_bind_mounts{false};
+    bool _debug_pruning{false};
 
     std::string _database_path;
 

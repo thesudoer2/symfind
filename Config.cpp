@@ -20,6 +20,10 @@
 #define DATABASE_DEFAULT_PATH "/var/lib/symfind/symfind.db"
 #endif
 
+#ifndef DATABASE_SCAN_ROOT_PATH
+#define DATABASE_SCAN_ROOT_PATH "/"
+#endif
+
 namespace SymFind
 {
 
@@ -30,15 +34,6 @@ std::unordered_set<std::string> ConfigParser::_valid_configs{PRUNE_BIND_MOUNTS_C
                                                              PRUNE_NAMES_CONFIG,
                                                              DATABASE_PATH_CONFIG};
 
-ConfigParser::ConfigParser(const std::string &config_file, std::string *err_msg) noexcept
-    : _prune_bind_mounts(false), _debug_pruning(false), _database_path(DATABASE_DEFAULT_PATH)
-{
-    bool parser_res = parse(config_file, err_msg);
-    if (!parser_res)
-    {
-        exit(EXIT_FAILURE);
-    }
-}
 
 bool ConfigParser::parse(const std::string &config_file, std::string *err_msg) noexcept
 {
@@ -188,7 +183,7 @@ void break_string(std::vector<std::string> &list, const std::string &str)
     }
 }
 
-std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, std::string value) noexcept
+std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, const std::string &value) noexcept
 {
     if (key == PRUNE_BIND_MOUNTS_CONFIG)
     {
