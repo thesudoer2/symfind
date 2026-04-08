@@ -7,18 +7,11 @@
 #include <memory>
 #include <string>
 
-#include <tl/expected.hpp>
-
 #include "Global.h"
+#include "Expected.h"
 
 namespace SymFind
 {
-
-template<typename V, typename E>
-using expected = tl::expected<V, E>;
-
-template<typename E>
-using unexpected = tl::unexpected<E>;
 
 class FileWrapper final
 {
