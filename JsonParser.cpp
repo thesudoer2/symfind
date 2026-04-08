@@ -11,7 +11,9 @@
 namespace SymFind
 {
 
-// -- JsonItem
+// -----------------------------------------------------------------------------
+// JsonItems implementation
+// -----------------------------------------------------------------------------
 
 JsonItem::JsonItem(std::string key, const JsonParser::Json_t &value) noexcept : _key(std::move(key)), _value(value)
 {
@@ -26,9 +28,6 @@ JsonParser JsonItem::value() const noexcept
 {
     return JsonParser(_value);
 }
-
-
-// -- JsonItems
 
 JsonItems::JsonItems(const JsonParser::Json_t &json) : _json(json)
 {
@@ -49,7 +48,9 @@ JsonItems::Iterator JsonItems::end() const noexcept
 }
 
 
-// -- JsonItems::Iterator
+// -----------------------------------------------------------------------------
+// JsonItems::Iterator implementation
+// -----------------------------------------------------------------------------
 
 JsonItems::Iterator &JsonItems::Iterator::operator++() noexcept
 {
@@ -68,7 +69,9 @@ JsonItem JsonItems::Iterator::operator*() const noexcept
 }
 
 
-// -- JsonParser
+// -----------------------------------------------------------------------------
+// JsonParser implementation
+// -----------------------------------------------------------------------------
 
 JsonParser::JsonParser(Json_t json_data) noexcept : _json_data(std::move(json_data))
 {
