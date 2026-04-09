@@ -5,20 +5,36 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <sys/resource.h>
+
+
+// NOLINTBEGIN(cppcoreguidelines-pro-type-vararg,readability-identifier-length)
+
 namespace SymFind
 {
+
+DIR *get_dp_from_fd(int fd) noexcept
+{
+    if (fd != -1)
+    {
+        DIR *dp = ::fdopendir(fd);
+        if (dp == nullptr)
+        {
+            ::close(fd);
+        }
+        return dp;
+    }
+    return nullptr;
+}
 
 DirWrapper::DirWrapper() noexcept = default;
 DirWrapper::~DirWrapper() noexcept = default;
 
 DirWrapper::DirWrapper(const std::string &dir_path) noexcept
-    : DirWrapper(dir_path, false)
 {
-}
+    int fd = open_impl(dir_path);
+    _dp.reset(get_dp_from_fd(fd));
 
-DirWrapper::DirWrapper(const std::string &dir_path, bool noatime) noexcept
-{
-    _dp = open_impl(dir_path, noatime);
     _is_open = _dp != nullptr; // NOLINT(cppcoreguidelines-prefer-member-initializer)
     _last_errno = _is_open ? 0 : errno;
     if (_is_open)
@@ -27,42 +43,65 @@ DirWrapper::DirWrapper(const std::string &dir_path, bool noatime) noexcept
     }
 }
 
-DirWrapper::DirPtr DirWrapper::open_impl(const std::string &dir_path, bool noatime) noexcept
+int DirWrapper::open_impl(const std::string &dir_path) noexcept
 {
-    if (!noatime)
+    static bool noatime_failed = false;
+
+    if (noatime_failed)
     {
-        return DirPtr(::opendir(dir_path.c_str()));
+        return ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY);
     }
 
-#if defined(__linux__) && defined(O_NOATIME) && defined(HAVE_FDOPENDIR) // or just always try on Linux
-    int fd = ::open(dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_NOATIME | O_CLOEXEC);
+#if defined(__linux__) && defined(O_NOATIME) && defined(HAVE_FDOPENDIR)
+    int fd = ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_NOATIME | O_CLOEXEC);
     if (fd == -1)
     {
+        noatime_failed = true;
+
         // Fallback: O_NOATIME may fail for non-owners without CAP_FOWNER
-        fd = ::open(dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        fd = ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     }
 
-    if (fd != -1)
+    if (fd == -1)
     {
-        DIR* dp = ::fdopendir(fd);
-        if (dp == nullptr)
-            ::close(fd);   // fdopendir failed → close the fd ourselves
-        return DirPtr(dp);
+        if (errno == EMFILE || errno == ENFILE)
+        {
+            // The admin probably wants to know about this.
+            perror(dir_path.c_str());
+
+            rlimit rlim{};
+            if (getrlimit(RLIMIT_NOFILE, &rlim) == -1)
+            {
+                fprintf(stderr, "Hint: Try `ulimit -n 131072' or similar.\n");
+            }
+            else
+            {
+                fprintf(stderr,
+                        "Hint: Try `ulimit -n %" PRIu64 " or similar (current limit is %" PRIu64 ").\n",
+                        static_cast<uint64_t>(rlim.rlim_cur * 2),
+                        static_cast<uint64_t>(rlim.rlim_cur));
+            }
+            exit(EXIT_FAILURE);
+        }
     }
+
+    return fd;
 #endif
 
     // Fallback to normal opendir on non-Linux or if everything failed
-    return DirPtr(::opendir(dir_path.c_str()));
+    return ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY);
 }
 
 bool DirWrapper::open(const std::string &dir_path) noexcept
 {
-    return open_noatime(dir_path);   // default to normal open
+    return open_noatime(dir_path); // default to normal open
 }
 
 bool DirWrapper::open_noatime(const std::string &dir_path) noexcept
 {
-    _dp = open_impl(dir_path, true);
+    int fd = open_impl(dir_path);
+    _dp.reset(get_dp_from_fd(fd));
+
     _is_open = _dp != nullptr;
     _last_errno = _is_open ? 0 : errno;
 
@@ -126,7 +165,7 @@ std::string DirWrapper::get_dir_path() const noexcept
 }
 
 
-struct dirent* DirWrapper::read() noexcept
+struct dirent *DirWrapper::read() noexcept
 {
     if (!_is_open)
     {
@@ -134,7 +173,7 @@ struct dirent* DirWrapper::read() noexcept
     }
 
     errno = 0;
-    struct dirent* entry = ::readdir(_dp.get());
+    struct dirent *entry = ::readdir(_dp.get());
     if (entry == nullptr)
     {
         _last_errno = errno;
@@ -158,15 +197,14 @@ expected<std::int32_t, DirWrapper::Errno_t> DirWrapper::get_fd() const noexcept
         return unexpected<Errno_t>(EBADF);
     }
 
-    int fd = ::dirfd(_dp.get()); // NOLINT(readability-identifier-length)
+    int fd = ::dirfd(_dp.get());
     return (fd == -1) ? unexpected<Errno_t>(errno) : expected<std::int32_t, Errno_t>(fd);
 }
 
 // -----------------------------------------------------------------------------
 // Iterator implementation
 // -----------------------------------------------------------------------------
-DirWrapper::iterator::iterator(DirWrapper* dir) noexcept
-    : _dir(dir)
+DirWrapper::iterator::iterator(DirWrapper *dir) noexcept : _dir(dir)
 {
     if (_dir != nullptr)
     {
@@ -184,7 +222,7 @@ DirWrapper::iterator::pointer DirWrapper::iterator::operator->() const noexcept
     return _entry;
 }
 
-DirWrapper::iterator& DirWrapper::iterator::operator++() noexcept
+DirWrapper::iterator &DirWrapper::iterator::operator++() noexcept
 {
     if (_dir != nullptr)
     {
@@ -200,12 +238,12 @@ DirWrapper::iterator DirWrapper::iterator::operator++(int) noexcept
     return tmp;
 }
 
-bool DirWrapper::iterator::operator==(const iterator& other) const noexcept
+bool DirWrapper::iterator::operator==(const iterator &other) const noexcept
 {
     return _entry == other._entry;
 }
 
-bool DirWrapper::iterator::operator!=(const iterator& other) const noexcept
+bool DirWrapper::iterator::operator!=(const iterator &other) const noexcept
 {
     return !(*this == other);
 }
@@ -222,3 +260,5 @@ DirWrapper::iterator DirWrapper::end() noexcept
 }
 
 } // namespace SymFind
+
+// NOLINTEND(cppcoreguidelines-pro-type-vararg,readability-identifier-length)

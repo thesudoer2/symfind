@@ -71,7 +71,6 @@ public: // NOLINT(readability-redundant-access-specifiers)
     DirWrapper &operator=(DirWrapper &&) noexcept = delete;
 
     explicit DirWrapper(const std::string &dir_path) noexcept;
-    DirWrapper(const std::string &dir_path, bool noatime) noexcept;
 
     bool operator!() const noexcept;
     bool operator!=(bool com_val) const noexcept;
@@ -102,7 +101,7 @@ public: // NOLINT(readability-redundant-access-specifiers)
     iterator end() noexcept;
 
 private:
-    static DirPtr open_impl(const std::string &dir_path, bool noatime) noexcept;
+    static int open_impl(const std::string &dir_path) noexcept;
 
     DirPtr _dp{nullptr};
     mutable Errno_t _last_errno = -1;
