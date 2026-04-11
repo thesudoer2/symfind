@@ -44,6 +44,9 @@ public:
 private:
     using MountEntries = std::multimap<std::pair<DeviceMajor, DeviceMinor>, Mount>;
 
+public:
+    bool is_bind_mount(const std::string& path) noexcept;
+
 private: // NOLINT(readability-redundant-access-specifiers)
     explicit BindMount(std::shared_ptr<ConfigParser> conf) noexcept;
 
@@ -63,10 +66,10 @@ private: // NOLINT(readability-redundant-access-specifiers)
     int _mountinfo_fd = -1;
 
     /* mountinfo update state */
-    std::atomic_bool mountinfo_updated = false;
+    std::atomic_bool _mountinfo_updated = false;
 
     /* Next bind_mount_paths entry */
-    std::size_t bind_mount_paths_index = 0;
+    std::size_t _bind_mount_paths_index = 0;
 
     /* Known bind mount paths */
     std::vector<std::string> _bind_mount_paths;

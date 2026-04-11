@@ -2,6 +2,7 @@
 
 #include <cinttypes>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/types.h>
 
 #include <iterator>
@@ -34,6 +35,32 @@ private:
 public:
     using Errno_t = std::int32_t;
 
+    using DirStat = struct stat;
+    using DirStatPtr = std::shared_ptr<DirStat>;
+
+    using Dev_t = dev_t;
+
+    struct DirTime
+    {
+        std::int64_t sec;
+        std::int32_t nsec;
+
+        bool operator<(const DirTime &other) const
+        {
+            if (sec != other.sec)
+            {
+                return sec < other.sec;
+            }
+
+            return nsec < other.nsec;
+        }
+
+        bool operator>=(const DirTime &other) const
+        {
+            return !(other < *this);
+        }
+    };
+
     class iterator
     {
     public:
@@ -65,10 +92,10 @@ public: // NOLINT(readability-redundant-access-specifiers)
     ~DirWrapper() noexcept;
 
     DirWrapper(const DirWrapper &) noexcept = delete;
-    DirWrapper(DirWrapper &&) noexcept = delete;
+    DirWrapper(DirWrapper &&) noexcept = default;
 
     DirWrapper &operator=(const DirWrapper &) noexcept = delete;
-    DirWrapper &operator=(DirWrapper &&) noexcept = delete;
+    DirWrapper &operator=(DirWrapper &&) noexcept = default;
 
     explicit DirWrapper(const std::string &dir_path) noexcept;
 
@@ -78,6 +105,9 @@ public: // NOLINT(readability-redundant-access-specifiers)
     explicit operator bool() const noexcept;
 
 public: // NOLINT(readability-redundant-access-specifiers)
+    __nodiscard static DirTime get_dirtime_from_stat(const DirStat& stat) noexcept;
+    __nodiscard static Dev_t get_dev_from_stat(const DirStat& stat) noexcept;
+
     const DIR *get_cdp() const noexcept;
     DIR *get_dp() noexcept;
 
@@ -91,6 +121,10 @@ public: // NOLINT(readability-redundant-access-specifiers)
 
     __nodiscard std::string get_dir_path() const noexcept;
 
+    __nodiscard expected<DirStatPtr, Errno_t> get_stat() noexcept;
+
+    __nodiscard expected<DirStat, Errno_t> get_parent_stat() noexcept;
+
 public: // NOLINT(readability-redundant-access-specifiers)
     struct dirent *read() noexcept;
     void rewind() noexcept;
@@ -103,10 +137,16 @@ public: // NOLINT(readability-redundant-access-specifiers)
 private:
     static int open_impl(const std::string &dir_path) noexcept;
 
+    void clear() noexcept;
+
+private: // NOLINT(readability-redundant-access-specifiers)
     DirPtr _dp{nullptr};
+    DirStatPtr _stat{nullptr};
     mutable Errno_t _last_errno = -1;
     bool _is_open = false;
-    std::string _dir_path;
 };
+
+static constexpr DirWrapper::DirTime not_a_dir{-1, 0};
+static constexpr DirWrapper::DirTime unknown_dir_time{0, 0};
 
 } // namespace SymFind

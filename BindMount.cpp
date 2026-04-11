@@ -49,12 +49,23 @@ void BindMount::init_bind_mount() noexcept
             }
             if ((pfd.revents & POLLPRI) != 0)
             {
-                mountinfo_updated = true;
+                _mountinfo_updated = true;
             }
         }
     });
 
     poll_thread.detach();
+}
+
+bool BindMount::is_bind_mount(const std::string &path) noexcept
+{
+    if (_mountinfo_updated.exchange(false))
+    {
+        rebuild_bind_mount_paths();
+        _bind_mount_paths_index = 0;
+    }
+
+    return FSHelper::string_list_contains_dir_path(_bind_mount_paths, _bind_mount_paths_index, path);
 }
 
 // NOLINTBEGIN
@@ -176,8 +187,8 @@ std::optional<BindMount::MountEntries> BindMount::read_mount_entries() noexcept
                 (std::find(_conf->get_prune_fs().begin(), _conf->get_prune_fs().end(), fs_type_upper) !=
                  _conf->get_prune_fs().end());
             size_t prunepath_index = 0; // Search the entire list every time.
-            mount_entry.pruned_due_to_path = FSHelper::string_list_contains_dir_path(&_conf->get_prune_paths(),
-                                                                                     &prunepath_index,
+            mount_entry.pruned_due_to_path = FSHelper::string_list_contains_dir_path(_conf->get_prune_paths(),
+                                                                                     prunepath_index,
                                                                                      mount_entry.mount_point.c_str());
             mount_entries.emplace(std::make_pair(mount_entry.dev_major, mount_entry.dev_minor), mount_entry);
             if (_conf->get_debug_pruning())

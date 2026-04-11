@@ -7,13 +7,30 @@
 #include "Global.h"
 #include "JsonParser.h"
 
+
+#define PRUNE_BIND_MOUNTS_CONFIG "prune_bind_mounts"
+#define DEBUG_PRUNING_CONFIG "debug_pruning"
+#define PRUNE_FS_CONFIG "prunefs"
+#define PRUNE_PATHS_CONFIG "prunepaths"
+#define PRUNE_NAMES_CONFIG "prunenames"
+#define DATABASE_PATH_CONFIG "database_path"
+#define DATABASE_SCAN_PATH_CONFIG "database_scan_path"
+
+#ifndef DATABASE_DEFAULT_PATH
+#define DATABASE_DEFAULT_PATH "/var/lib/symfind/symfind.db"
+#endif
+
+#ifndef DATABASE_DEFAULT_SCAN_ROOT_PATH
+#define DATABASE_DEFAULT_SCAN_ROOT_PATH "/"
+#endif
+
 namespace SymFind
 {
 
 class ConfigParser final
 {
 public:
-    ConfigParser() noexcept = default;
+    ConfigParser() noexcept;
     ~ConfigParser() noexcept = default;
 
     ConfigParser(const ConfigParser &) noexcept = default;
@@ -37,6 +54,7 @@ public:
     __nodiscard bool get_prune_bind_mounts() const noexcept;
     __nodiscard bool get_debug_pruning() const noexcept;
     __nodiscard const std::string &get_database_path() const noexcept;
+    __nodiscard const std::string &get_database_scan_path() const noexcept;
     __nodiscard const std::vector<std::string> &get_prune_fs() const noexcept;
     __nodiscard const std::vector<std::string> &get_prune_paths() const noexcept;
     __nodiscard const std::vector<std::string> &get_prune_names() const noexcept;
@@ -47,6 +65,7 @@ private:
     bool _debug_pruning{false};
 
     std::string _database_path;
+    std::string _database_scan_path;
 
     std::vector<std::string> _prunefs;
     std::vector<std::string> _prunepaths;

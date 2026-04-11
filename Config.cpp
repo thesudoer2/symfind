@@ -9,21 +9,6 @@
 #include "Global.h"
 #include "JsonParser.h"
 
-#define PRUNE_BIND_MOUNTS_CONFIG "prune_bind_mounts"
-#define DEBUG_PRUNING_CONFIG "debug_pruning"
-#define PRUNE_FS_CONFIG "prunefs"
-#define PRUNE_PATHS_CONFIG "prunepaths"
-#define PRUNE_NAMES_CONFIG "prunenames"
-#define DATABASE_PATH_CONFIG "database_path"
-
-#ifndef DATABASE_DEFAULT_PATH
-#define DATABASE_DEFAULT_PATH "/var/lib/symfind/symfind.db"
-#endif
-
-#ifndef DATABASE_SCAN_ROOT_PATH
-#define DATABASE_SCAN_ROOT_PATH "/"
-#endif
-
 namespace SymFind
 {
 
@@ -32,8 +17,12 @@ std::unordered_set<std::string> ConfigParser::_valid_configs{PRUNE_BIND_MOUNTS_C
                                                              PRUNE_FS_CONFIG,
                                                              PRUNE_PATHS_CONFIG,
                                                              PRUNE_NAMES_CONFIG,
-                                                             DATABASE_PATH_CONFIG};
+                                                             DATABASE_PATH_CONFIG,
+                                                             DATABASE_SCAN_PATH_CONFIG};
 
+ConfigParser::ConfigParser() noexcept : _database_path(DATABASE_DEFAULT_PATH), _database_scan_path(DATABASE_DEFAULT_SCAN_ROOT_PATH)
+{
+}
 
 bool ConfigParser::parse(const std::string &config_file, std::string *err_msg) noexcept
 {
@@ -110,14 +99,20 @@ std::pair<bool, std::string> ConfigParser::extract_config(const JsonParser &json
 }
 
 /* Store a string list to OBSTACK */
-void generate_conf_block_string_list(std::string *obstack, const std::vector<std::string> *strings)
+void generate_conf_block_string_list(std::string &obstack, const std::vector<std::string> &strings)
 {
-    for (const auto &str : *strings)
+    for (const auto &str : strings)
     {
-        *obstack += str;
-        *obstack += '\0';
+        obstack += str;
+        obstack += '\0';
     }
-    *obstack += '\0';
+    obstack += '\0';
+}
+
+/* Store a string to OBSTACK */
+void generate_conf_block_string(std::string &obstack, const std::string &string)
+{
+    obstack.append(string, string.size() + 2);
 }
 
 void ConfigParser::generate_conf_block() noexcept
@@ -127,18 +122,29 @@ void ConfigParser::generate_conf_block() noexcept
 
     _conf_block.clear();
 
-	CONST("prune_bind_mounts");
+	CONST(PRUNE_BIND_MOUNTS_CONFIG);
     /* Add two NUL bytes after the value */
 	_conf_block.append(_prune_bind_mounts ? "1\0" : "0\0", 3);
 
-	CONST("prunefs");
-	generate_conf_block_string_list(&_conf_block, &_prunefs);
+    CONST(DEBUG_PRUNING_CONFIG);
+    /* Add two NUL bytes after the value */
+	_conf_block.append(_debug_pruning ? "1\0" : "0\0", 3);
 
-	CONST("prunenames");
-	generate_conf_block_string_list(&_conf_block, &_prunenames);
+	CONST(PRUNE_FS_CONFIG);
+	generate_conf_block_string_list(_conf_block, _prunefs);
 
-	CONST("prunepaths");
-	generate_conf_block_string_list(&_conf_block, &_prunepaths);
+	CONST(PRUNE_NAMES_CONFIG);
+	generate_conf_block_string_list(_conf_block, _prunenames);
+
+	CONST(PRUNE_PATHS_CONFIG);
+	generate_conf_block_string_list(_conf_block, _prunepaths);
+
+    CONST(DATABASE_PATH_CONFIG);
+    generate_conf_block_string(_conf_block, _database_path);
+
+    CONST(DATABASE_SCAN_PATH_CONFIG);
+    generate_conf_block_string(_conf_block, _database_scan_path);
+
 }
 
 expected<bool, std::string> to_bool(const std::string &str)
@@ -211,6 +217,14 @@ std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, 
         }
         _database_path = value;
     }
+    else if (key == DATABASE_SCAN_PATH_CONFIG)
+    {
+        if (!value.empty())
+        {
+            return {true, ""};
+        }
+        _database_scan_path = value;
+    }
     else if (key == PRUNE_FS_CONFIG)
     {
         break_string(_prunefs, value);
@@ -240,6 +254,11 @@ bool ConfigParser::get_debug_pruning() const noexcept
 const std::string &ConfigParser::get_database_path() const noexcept
 {
     return _database_path;
+}
+
+const std::string &ConfigParser::get_database_scan_path() const noexcept
+{
+    return _database_scan_path;
 }
 
 const std::vector<std::string> &ConfigParser::get_prune_fs() const noexcept

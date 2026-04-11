@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <utility>
@@ -11,7 +12,9 @@ template <typename T>
 class Singleton
 {
 public:
-    /// Construct instance internally
+    using InstancePtr = std::shared_ptr<T>;
+
+    /// Construct instance internally (can be called only once)
     template <typename... Args>
     static void init(Args &&...args)
     {
@@ -25,7 +28,7 @@ public:
         }
     }
 
-    /// Get the constructed instance
+    /// Get the constructed instance as reference
     static T &getInstance()
     {
         if (!instance_ptr())
@@ -34,6 +37,21 @@ public:
         }
 
         return *instance_ptr();
+    }
+
+    /// Get the instance as InstancePtr
+    /// This is the new function you requested
+    static InstancePtr getInstancePtr()
+    {
+        std::lock_guard<std::mutex> lock(mutex());
+
+        if (!instance_ptr())
+        {
+            throw std::runtime_error("Singleton not initialized");
+        }
+
+        // Create a shared_ptr that does NOT take ownership (the raw pointer is still managed by the Singleton)
+        return InstancePtr(instance_ptr(), [](T *) { /* do nothing - Singleton owns the lifetime */ });
     }
 
 private:
