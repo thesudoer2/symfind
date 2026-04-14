@@ -81,6 +81,7 @@ void BindMount::rebuild_bind_mount_paths() noexcept
     {
         return;
     }
+
     if (_conf->get_debug_pruning())
     {
         std::fprintf(stderr, "Matching bind_mount_paths:\n");
