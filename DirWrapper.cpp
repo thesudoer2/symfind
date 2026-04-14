@@ -1,6 +1,7 @@
 #include "DirWrapper.h"
 
 #include <cerrno>
+#include <cstring>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -39,9 +40,9 @@ DIR *get_dp_from_fd(int fd) noexcept
 DirWrapper::DirWrapper() noexcept = default;
 DirWrapper::~DirWrapper() noexcept = default;
 
-DirWrapper::DirWrapper(const std::string &dir_path) noexcept
+DirWrapper::DirWrapper(const std::string &dir_path, int hint_fd) noexcept
 {
-    int fd = open_impl(dir_path);
+    int fd = open_impl(dir_path, hint_fd);
 
     _is_open = fd != -1;
     _last_errno = _is_open ? 0 : errno;
@@ -51,23 +52,23 @@ DirWrapper::DirWrapper(const std::string &dir_path) noexcept
     _last_errno = _is_open ? 0 : errno;
 }
 
-int DirWrapper::open_impl(const std::string &dir_path) noexcept
+int DirWrapper::open_impl(const std::string &dir_path, int hint_fd) noexcept
 {
     static bool noatime_failed = false;
 
     if (noatime_failed)
     {
-        return ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY);
+        return ::openat(hint_fd, dir_path.c_str(), O_RDONLY | O_DIRECTORY);
     }
 
 #if defined(__linux__) && defined(O_NOATIME) && defined(HAVE_FDOPENDIR)
-    int fd = ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_NOATIME | O_CLOEXEC);
+    int fd = ::openat(hint_fd, dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_NOATIME | O_CLOEXEC);
     if (fd == -1)
     {
         noatime_failed = true;
 
         // Fallback: O_NOATIME may fail for non-owners without CAP_FOWNER
-        fd = ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        fd = ::openat(hint_fd, dir_path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     }
 
     if (fd == -1)
@@ -97,7 +98,7 @@ int DirWrapper::open_impl(const std::string &dir_path) noexcept
 #endif
 
     // Fallback to normal opendir on non-Linux or if everything failed
-    return ::openat(AT_FDCWD, dir_path.c_str(), O_RDONLY | O_DIRECTORY);
+    return ::openat(hint_fd, dir_path.c_str(), O_RDONLY | O_DIRECTORY);
 }
 
 void DirWrapper::clear() noexcept
@@ -108,15 +109,15 @@ void DirWrapper::clear() noexcept
     _is_open = false;
 }
 
-bool DirWrapper::open(const std::string &dir_path) noexcept
+bool DirWrapper::open(const std::string &dir_path, int hint_fd) noexcept
 {
     clear();
-    return open_noatime(dir_path); // default to normal open
+    return open_noatime(dir_path, hint_fd); // default to normal open
 }
 
-bool DirWrapper::open_noatime(const std::string &dir_path) noexcept
+bool DirWrapper::open_noatime(const std::string &dir_path, int hint_fd) noexcept
 {
-    int fd = open_impl(dir_path);
+    int fd = open_impl(dir_path, hint_fd);
 
     _is_open = fd != -1;
     _last_errno = _is_open ? 0 : errno;
@@ -173,23 +174,26 @@ std::string DirWrapper::get_dir_path() const noexcept
         return {};
     }
 
-    std::string fd_path;
-    fd_path.resize(MAX_PATH_LEN);
+    // std::string fd_path;
+    // fd_path.resize(MAX_PATH_LEN);
+    char fd_path[MAX_PATH_LEN];
 
-    std::string file_path;
-    file_path.resize(MAX_PATH_LEN);
+    // std::string file_path;
+    // file_path.resize(MAX_PATH_LEN);
+    char file_path[MAX_PATH_LEN];
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-    std::snprintf(fd_path.data(), MAX_PATH_LEN, "%s/%d", PROC_FD_PATH, fdex.value());
+    std::snprintf(fd_path, MAX_PATH_LEN, "%s/%d", PROC_FD_PATH, fdex.value());
 
-    ssize_t len = readlink(fd_path.c_str(), file_path.data(), MAX_PATH_LEN - 1);
+    ssize_t len = ::readlink(fd_path, file_path, MAX_PATH_LEN - 1);
     if (len == -1)
     {
         return {};
     }
 
     file_path[len] = '\0';
-    return file_path;
+
+    return {file_path, std::strlen(file_path)};
 }
 
 expected<DirWrapper::DirStatPtr, DirWrapper::Errno_t> DirWrapper::get_stat() noexcept

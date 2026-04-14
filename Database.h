@@ -20,7 +20,8 @@ public: // NOLINT(readability-redundant-access-specifiers)
     std::pair<bool, std::string> scan() noexcept;
 
 private:
-    static std::pair<bool, std::string> scan_impl(const Database &this_p, DirWrapper &dir_wrapper) noexcept;
+    static std::pair<bool, std::string> scan_impl(const Database &this_p,
+                                                  std::shared_ptr<DirWrapper> dir_wrapper) noexcept;
 
 private: // NOLINT(readability-redundant-access-specifiers)
     std::shared_ptr<ConfigParser> _conf;

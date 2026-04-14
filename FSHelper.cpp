@@ -1,6 +1,9 @@
 #include "FSHelper.h"
 
+#include <cinttypes>
+
 #include <algorithm>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -90,6 +93,52 @@ bool filesystem_is_excluded(const std::vector<std::string> &list, const std::str
         return exclude;
     }
     endmntent(f);
+    return false;
+}
+
+template <typename Iterator>
+bool iterators_are_the_same(const Iterator& f_begin, const Iterator& f_end, const Iterator& s_begin, const Iterator& s_end) noexcept
+{
+    if (std::distance(f_begin, f_end) != std::distance(s_begin, s_end))
+    {
+        return false;
+    }
+
+    std::size_t distance = std::distance(f_begin, f_end);
+    for (std::size_t i{}; i < distance; ++i)
+    {
+        if (*(f_begin + i) != *(s_begin + i))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool filename_has_extension(const std::string &filename, const std::string &extension)
+{
+    if (filename.empty() || extension.empty() || extension.size() > filename.size())
+    {
+        return false;
+    }
+
+    std::int32_t e_size = extension.size(); // NOLINT
+    const std::string::const_reverse_iterator eit_begin = extension.crbegin();
+    const std::string::const_reverse_iterator eit_end = extension.crend();
+    for (std::string::const_reverse_iterator fit = filename.crbegin(); fit < filename.crend() - e_size; ++fit)
+    {
+        if (*fit == *eit_begin) [[unlikely]]
+        {
+            if (iterators_are_the_same(fit, fit + e_size, eit_begin, eit_end))
+            {
+                if (char prev_ch = *(fit - 1); fit != filename.crbegin() && prev_ch != '.')
+                {
+                    continue;
+                }
+                return true;
+            }
+        }
+    }
     return false;
 }
 // NOLINTEND(readability-identifier-length,cppcoreguidelines-pro-type-vararg)

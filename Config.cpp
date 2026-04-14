@@ -112,7 +112,8 @@ void generate_conf_block_string_list(std::string &obstack, const std::vector<std
 /* Store a string to OBSTACK */
 void generate_conf_block_string(std::string &obstack, const std::string &string)
 {
-    obstack.append(string, string.size() + 2);
+    obstack += string;
+    obstack += "\0\0";
 }
 
 void ConfigParser::generate_conf_block() noexcept

@@ -30,7 +30,7 @@ struct FoundEntry
     bool is_directory = false;
 
     // For directories only:
-    DirWrapper dir;
+    std::shared_ptr<DirWrapper> dir{nullptr};
 };
 
 Database::Database(std::shared_ptr<ConfigParser> conf) noexcept
@@ -43,21 +43,22 @@ Database::Database(std::shared_ptr<ConfigParser> conf) noexcept
 std::pair<bool, std::string> Database::scan() noexcept
 {
     const std::string &database_scan_path = _conf->get_database_scan_path();
-    DirWrapper root_dir(database_scan_path);
+    std::shared_ptr<DirWrapper> root_dir(std::make_shared<DirWrapper>(database_scan_path));
 
-    if (!root_dir)
+    if (!root_dir->is_open())
     {
-        return {false, std::strerror(root_dir.get_errno())};
+        return {false, std::strerror(root_dir->get_errno())};
     }
 
     return scan_impl(*this, root_dir);
 }
 
-std::pair<bool, std::string> Database::scan_impl(const Database& this_p, DirWrapper& dir) noexcept
+// NOLINTNEXTLINE(readability-function-cognitive-complexity,performance-unnecessary-value-param)
+std::pair<bool, std::string> Database::scan_impl(const Database &this_p, std::shared_ptr<DirWrapper> dir) noexcept
 {
-    const std::string& current_dir_path = dir.get_dir_path();
+    const std::string& current_dir_path = dir->get_dir_path();
 
-    expected<int, DirWrapper::Errno_t> fd_res = dir.get_fd();
+    expected<int, DirWrapper::Errno_t> fd_res = dir->get_fd();
     if (!fd_res.has_value()) [[unlikely]]
     {
         return {false, ""};
@@ -86,9 +87,7 @@ std::pair<bool, std::string> Database::scan_impl(const Database& this_p, DirWrap
 
     const std::string path_plus_slash = current_dir_path.back() == '/' ? current_dir_path : current_dir_path + '/';
 
-    std::vector<FoundEntry> entries;
-
-    DIR *dp = dir.get_dp();
+    DIR *dp = dir->get_dp();
     if (dp == nullptr)
     {
         // fdopendir() wants to fstat() the fd to verify that it's indeed
@@ -98,7 +97,7 @@ std::pair<bool, std::string> Database::scan_impl(const Database& this_p, DirWrap
         return {true, ""};
     }
 
-    for (const struct dirent& de : dir)
+    for (const struct dirent& de : *dir)
     {
         if (strcmp(de.d_name, ".") == 0 || strcmp(de.d_name, "..") == 0)
         {
@@ -108,7 +107,7 @@ std::pair<bool, std::string> Database::scan_impl(const Database& this_p, DirWrap
         if (strlen(de.d_name) == 0)
         {
             /* Unfortunately, this does happen, and mere assert() does not give
-                users enough information to complain to the right people. */
+                // users enough information to complain to the right people. */
             fprintf(stderr, "file system error: zero-length file name in directory %s", current_dir_path.c_str());
             continue;
         }
@@ -133,7 +132,12 @@ std::pair<bool, std::string> Database::scan_impl(const Database& this_p, DirWrap
 
         if (!entry.is_directory)
         {
-            entries.push_back(std::move(entry));
+            if (FSHelper::filename_has_extension(entry.name, ".so") ||
+                FSHelper::filename_has_extension(entry.name, ".a") ||
+                FSHelper::filename_has_extension(entry.name, ".o"))
+            {
+                fprintf(stderr, ">>>>> file matched: %s/%s\n", current_dir_path.c_str(), entry.name.c_str());
+            }
             continue;
         }
 
@@ -145,40 +149,39 @@ std::pair<bool, std::string> Database::scan_impl(const Database& this_p, DirWrap
                 fprintf(stderr, "Skipping `%s': in prunenames\n", entry.name.c_str());
             }
 
-            entries.push_back(std::move(entry));
             continue;
         }
 
-        entry.dir.open(entry.name);
-        if (!entry.dir)
+        entry.dir = std::make_shared<DirWrapper>();
+        entry.dir->open(entry.name, fd);
+        if (!entry.dir->is_open())
         {
-            entries.push_back(std::move(entry));
+            fprintf(stderr, "Failed opening \"%s/%s\": %s\n", current_dir_path.c_str(), entry.name.c_str(), std::strerror(entry.dir->get_errno()));
             continue;
         }
 
-        expected<DirWrapper::DirStatPtr, DirWrapper::Errno_t> stat_res = dir.get_stat();
+        expected<DirWrapper::DirStatPtr, DirWrapper::Errno_t> stat_res = dir->get_stat();
         if (!stat_res.has_value())
         {
             if (FSHelper::filesystem_is_excluded(this_p._conf->get_prune_fs(), path_plus_slash + entry.name))
             {
-                entries.push_back(std::move(entry));
                 continue;
             }
 
             fprintf(stderr,
                     "Could not get stat for \"%s\": %s\n",
-                    dir.get_dir_path().c_str(),
+                    current_dir_path.c_str(),
                     std::strerror(stat_res.error()));
             exit(EXIT_FAILURE);
         }
         DirWrapper::DirStatPtr stat = stat_res.value();
 
-        expected<DirWrapper::DirStat, DirWrapper::Errno_t> parent_stat_res = dir.get_parent_stat();
+        expected<DirWrapper::DirStat, DirWrapper::Errno_t> parent_stat_res = dir->get_parent_stat();
         if (!parent_stat_res.has_value())
         {
             fprintf(stderr,
                     "Could not parent stat for \"%s\": %s\n",
-                    dir.get_dir_path().c_str(),
+                    current_dir_path.c_str(),
                     std::strerror(stat_res.error()));
             exit(EXIT_FAILURE);
         }
@@ -188,7 +191,6 @@ std::pair<bool, std::string> Database::scan_impl(const Database& this_p, DirWrap
         {
             if (FSHelper::filesystem_is_excluded(this_p._conf->get_prune_fs(), path_plus_slash + entry.name))
             {
-                entries.push_back(std::move(entry));
                 continue;
             }
         }

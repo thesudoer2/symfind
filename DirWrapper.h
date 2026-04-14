@@ -97,7 +97,7 @@ public: // NOLINT(readability-redundant-access-specifiers)
     DirWrapper &operator=(const DirWrapper &) noexcept = delete;
     DirWrapper &operator=(DirWrapper &&) noexcept = default;
 
-    explicit DirWrapper(const std::string &dir_path) noexcept;
+    explicit DirWrapper(const std::string &dir_path, int hint_fd = AT_FDCWD) noexcept;
 
     bool operator!() const noexcept;
     bool operator!=(bool com_val) const noexcept;
@@ -111,8 +111,8 @@ public: // NOLINT(readability-redundant-access-specifiers)
     const DIR *get_cdp() const noexcept;
     DIR *get_dp() noexcept;
 
-    bool open(const std::string &dir_path) noexcept;
-    bool open_noatime(const std::string &dir_path) noexcept;
+    bool open(const std::string &dir_path, int hint_fd = AT_FDCWD) noexcept;
+    bool open_noatime(const std::string &dir_path, int hint_fd = AT_FDCWD) noexcept;
     void close() noexcept;
 
     __nodiscard bool is_open() const noexcept;
@@ -135,7 +135,7 @@ public: // NOLINT(readability-redundant-access-specifiers)
     iterator end() noexcept;
 
 private:
-    static int open_impl(const std::string &dir_path) noexcept;
+    static int open_impl(const std::string &dir_path, int hint_fd) noexcept;
 
     void clear() noexcept;
 

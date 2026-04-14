@@ -60,4 +60,6 @@ extern bool string_list_contains_dir_path(const std::vector<std::string> &list, 
  */
 extern bool filesystem_is_excluded(const std::vector<std::string> &list, const std::string &path) noexcept;
 
+extern bool filename_has_extension(const std::string& filename, const std::string& extension);
+
 } // namespace SymFind::FSHelper
