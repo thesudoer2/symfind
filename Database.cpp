@@ -19,10 +19,50 @@
 #include "FSHelper.h"
 #include "DirWrapper.h"
 
+#define SHARED_LIBRARY_EXTENSION ".so"
+#define STATIC_LIBRARY_EXTENSION ".a"
+#define OBJECT_FILE_EXTENSION ".o"
+
 // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg,readability-identifier-length,cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
 namespace SymFind
 {
+
+// -----------------------------------------------------------------------------
+// StringCache implementation
+// -----------------------------------------------------------------------------
+
+Database::StringCache::StringID Database::StringCache::store_string(const String& str) noexcept
+{
+    StringID id{};
+    if (auto found_it = _str_to_id.find(str); found_it == _str_to_id.end())
+    {
+        // Store string in string list (id->string)
+        _id_to_str.push_back(str);
+        id = _id_to_str.size() - 1;
+
+        // Store {str, id} pair in map (string->id)
+        _str_to_id.try_emplace(str, id);
+    }
+    else
+    {
+        id = found_it->second;
+    }
+    return id;
+}
+
+Database::StringCache::String Database::StringCache::get_string(StringID id) const noexcept
+{
+    if (id >= _id_to_str.size())
+    {
+        return "";
+    }
+    return _id_to_str[id];
+}
+
+// -----------------------------------------------------------------------------
+// Database implementation
+// -----------------------------------------------------------------------------
 
 struct FoundEntry
 {
@@ -50,11 +90,19 @@ std::pair<bool, std::string> Database::scan() noexcept
         return {false, std::strerror(root_dir->get_errno())};
     }
 
-    return scan_impl(*this, root_dir);
+    auto [scan_stat, err_msg] = scan_fs(*this, root_dir);
+    if (!scan_stat)
+    {
+        return {scan_stat, err_msg};
+    }
+
+    // Parse scaned and stored ELF files...
+
+    return {true, ""};
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,performance-unnecessary-value-param)
-std::pair<bool, std::string> Database::scan_impl(const Database &this_p, std::shared_ptr<DirWrapper> dir) noexcept
+std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr<DirWrapper> dir) noexcept
 {
     const std::string& current_dir_path = dir->get_dir_path();
 
@@ -132,11 +180,12 @@ std::pair<bool, std::string> Database::scan_impl(const Database &this_p, std::sh
 
         if (!entry.is_directory)
         {
-            if (FSHelper::filename_has_extension(entry.name, ".so") ||
-                FSHelper::filename_has_extension(entry.name, ".a") ||
-                FSHelper::filename_has_extension(entry.name, ".o"))
+            if (FSHelper::filename_has_extension(entry.name, SHARED_LIBRARY_EXTENSION) ||
+                FSHelper::filename_has_extension(entry.name, STATIC_LIBRARY_EXTENSION) ||
+                FSHelper::filename_has_extension(entry.name, OBJECT_FILE_EXTENSION))
             {
-                fprintf(stderr, ">>>>> file matched: %s/%s\n", current_dir_path.c_str(), entry.name.c_str());
+                StringCache::StringID id = this_p._found_files_paths_cache.store_string(current_dir_path);
+                this_p._found_files.emplace_back(FileInfo{entry.name, id});
             }
             continue;
         }
@@ -156,7 +205,15 @@ std::pair<bool, std::string> Database::scan_impl(const Database &this_p, std::sh
         entry.dir->open(entry.name, fd);
         if (!entry.dir->is_open())
         {
-            fprintf(stderr, "Failed opening \"%s/%s\": %s\n", current_dir_path.c_str(), entry.name.c_str(), std::strerror(entry.dir->get_errno()));
+            if (this_p._conf->get_debug_pruning())
+            {
+                fprintf(stderr,
+                        "Failed opening \"%s/%s\": %s\n",
+                        current_dir_path.c_str(),
+                        entry.name.c_str(),
+                        std::strerror(entry.dir->get_errno()));
+            }
+
             continue;
         }
 
@@ -200,7 +257,7 @@ std::pair<bool, std::string> Database::scan_impl(const Database &this_p, std::sh
 
         if (entry.is_directory && fd != -1)
         {
-            auto [stat, message] = scan_impl(this_p, entry.dir);
+            auto [stat, message] = scan_fs(this_p, entry.dir);
             if (!stat)
             {
                 // TODO: The unscanned file descriptors will leak, but it doesn't really matter,
