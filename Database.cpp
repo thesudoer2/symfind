@@ -66,8 +66,15 @@ Database::StringCache::String Database::StringCache::get_string(StringID id) con
 
 struct FoundEntry
 {
+    enum EntryType : std::uint8_t
+    {
+        UNKNOWN = 0x01,
+        DIRECTORY = 0x02,
+        REG_FILE = 0x04,
+    };
+
     std::string name;
-    bool is_directory = false;
+    EntryType entry_type = EntryType::UNKNOWN;
 
     // For directories only:
     std::shared_ptr<DirWrapper> dir{nullptr};
@@ -105,6 +112,7 @@ std::pair<bool, std::string> Database::scan() noexcept
 std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr<DirWrapper> dir) noexcept
 {
     const std::string& current_dir_path = dir->get_dir_path();
+    const std::string path_plus_slash = current_dir_path.back() == '/' ? current_dir_path : current_dir_path + '/';
 
     expected<int, DirWrapper::Errno_t> fd_res = dir->get_fd();
     if (!fd_res.has_value()) [[unlikely]]
@@ -119,7 +127,7 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
     {
         if (this_p._conf->get_debug_pruning())
         {
-            fprintf(stderr, "Skipping `%s': in %s\n", current_dir_path.c_str(), PRUNE_PATHS_CONFIG);
+            fprintf(stderr, "Skipping `%s': in %s\n", path_plus_slash.c_str(), PRUNE_PATHS_CONFIG);
         }
         return {false, std::format("Database scan path determined in {} list", PRUNE_PATHS_CONFIG)};
     }
@@ -128,12 +136,10 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
     {
         if (this_p._conf->get_debug_pruning())
         {
-            fprintf(stderr, "Skipping `%s': %s\n", current_dir_path.c_str(), PRUNE_BIND_MOUNTS_CONFIG);
+            fprintf(stderr, "Skipping `%s': %s\n", path_plus_slash.c_str(), PRUNE_BIND_MOUNTS_CONFIG);
         }
         return {false, std::format("Database scan path determined in {} list", PRUNE_BIND_MOUNTS_CONFIG)};
     }
-
-    const std::string path_plus_slash = current_dir_path.back() == '/' ? current_dir_path : current_dir_path + '/';
 
     DIR *dp = dir->get_dp();
     if (dp == nullptr)
@@ -156,35 +162,33 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
         {
             /* Unfortunately, this does happen, and mere assert() does not give
                 // users enough information to complain to the right people. */
-            fprintf(stderr, "file system error: zero-length file name in directory %s", current_dir_path.c_str());
+            fprintf(stderr, "file system error: zero-length file name in directory \"%s\"", path_plus_slash.c_str());
             continue;
         }
 
         FoundEntry entry;
         entry.name = de.d_name;
-        if (de.d_type == DT_UNKNOWN)
+
+        switch (de.d_type)
         {
-            // Evidently some file systems, like older versions of XFS
-            // (mkfs.xfs -m crc=0 -n ftype=0), can return this,
-            // and we need a stat(). If we wanted to optimize for this,
-            // we could probably defer it to later (we're stat-ing directories
-            // when recursing), but this is rare, and not really worth it --
-            // the second stat() will be cached anyway.
-            struct stat buf{};
-            entry.is_directory = ::fstatat(fd, de.d_name, &buf, AT_SYMLINK_NOFOLLOW) == 0 && S_ISDIR(buf.st_mode);
-        }
-        else
-        {
-            entry.is_directory = (de.d_type == DT_DIR);
+        case DT_DIR:
+            entry.entry_type = FoundEntry::DIRECTORY;
+            break;
+        case DT_REG:
+            entry.entry_type = FoundEntry::REG_FILE;
+            break;
+        default:
+            entry.entry_type = FoundEntry::UNKNOWN;
+            break;
         }
 
-        if (!entry.is_directory)
+        if (bool(entry.entry_type & FoundEntry::REG_FILE))
         {
             if (FSHelper::filename_has_extension(entry.name, SHARED_LIBRARY_EXTENSION) ||
                 FSHelper::filename_has_extension(entry.name, STATIC_LIBRARY_EXTENSION) ||
                 FSHelper::filename_has_extension(entry.name, OBJECT_FILE_EXTENSION))
             {
-                StringCache::StringID id = this_p._found_files_paths_cache.store_string(current_dir_path);
+                StringCache::StringID id = this_p._found_files_paths_cache.store_string(path_plus_slash);
                 this_p._found_files.emplace_back(FileInfo{entry.name, id});
             }
             continue;
@@ -208,8 +212,8 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
             if (this_p._conf->get_debug_pruning())
             {
                 fprintf(stderr,
-                        "Failed opening \"%s/%s\": %s\n",
-                        current_dir_path.c_str(),
+                        "Failed opening \"%s%s\": %s\n",
+                        path_plus_slash.c_str(),
                         entry.name.c_str(),
                         std::strerror(entry.dir->get_errno()));
             }
@@ -227,7 +231,7 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
 
             fprintf(stderr,
                     "Could not get stat for \"%s\": %s\n",
-                    current_dir_path.c_str(),
+                    path_plus_slash.c_str(),
                     std::strerror(stat_res.error()));
             exit(EXIT_FAILURE);
         }
@@ -238,7 +242,7 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
         {
             fprintf(stderr,
                     "Could not parent stat for \"%s\": %s\n",
-                    current_dir_path.c_str(),
+                    path_plus_slash.c_str(),
                     std::strerror(stat_res.error()));
             exit(EXIT_FAILURE);
         }
@@ -255,7 +259,7 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
         // _corpus->add_file(path_plus_slash + entry.name, entry.dt);
         // _dict_builder->add_file(path_plus_slash + entry.name, entry.dt);
 
-        if (entry.is_directory && fd != -1)
+        if (bool(entry.entry_type & FoundEntry::DIRECTORY) && fd != -1)
         {
             auto [stat, message] = scan_fs(this_p, entry.dir);
             if (!stat)
@@ -268,6 +272,11 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
     }
 
     return {true, ""};
+}
+
+const Database::FileList &Database::get_found_files() const noexcept
+{
+    return _found_files;
 }
 
 } // namespace SymFind

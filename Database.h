@@ -45,16 +45,22 @@ private:
         StringList _id_to_str;
     };
 
+public:
     struct FileInfo
     {
         std::string name;
         StringCache::StringID path_id;
     };
 
-public : explicit Database(std::shared_ptr<ConfigParser> conf) noexcept;
+    using FileList = std::vector<FileInfo>;
+
+public: // NOLINT(readability-redundant-access-specifiers)
+    explicit Database(std::shared_ptr<ConfigParser> conf) noexcept;
 
 public: // NOLINT(readability-redundant-access-specifiers)
     std::pair<bool, std::string> scan() noexcept;
+
+    const FileList& get_found_files() const noexcept;
 
 private:
     static std::pair<bool, std::string> scan_fs(Database &this_p,
@@ -64,7 +70,7 @@ private: // NOLINT(readability-redundant-access-specifiers)
     BindMount::InstancePtr _bind_mount;
     std::shared_ptr<ConfigParser> _conf;
 
-    std::vector<FileInfo> _found_files;
+    FileList _found_files;
     StringCache _found_files_paths_cache;
 
     std::unique_ptr<ExistingDB> _existing_db;
