@@ -14,7 +14,7 @@
 namespace SymFind
 {
 
-class Database final
+class FSScanner final
 {
 private:
     struct StringCache final
@@ -55,7 +55,7 @@ public:
     using FileList = std::vector<FileInfo>;
 
 public: // NOLINT(readability-redundant-access-specifiers)
-    explicit Database(std::shared_ptr<ConfigParser> conf) noexcept;
+    explicit FSScanner(std::shared_ptr<ConfigParser> conf) noexcept;
 
 public: // NOLINT(readability-redundant-access-specifiers)
     std::pair<bool, std::string> scan() noexcept;
@@ -63,7 +63,7 @@ public: // NOLINT(readability-redundant-access-specifiers)
     const FileList& get_found_files() const noexcept;
 
 private:
-    static std::pair<bool, std::string> scan_fs(Database &this_p,
+    static std::pair<bool, std::string> scan_fs(FSScanner &this_p,
                                                   std::shared_ptr<DirWrapper> dir_wrapper) noexcept;
 
 private: // NOLINT(readability-redundant-access-specifiers)

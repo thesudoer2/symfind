@@ -1,4 +1,4 @@
-#include "Database.h"
+#include "FSScanner.h"
 
 #include <cstddef>
 #include <cstring>
@@ -32,7 +32,7 @@ namespace SymFind
 // StringCache implementation
 // -----------------------------------------------------------------------------
 
-Database::StringCache::StringID Database::StringCache::store_string(const String& str) noexcept
+FSScanner::StringCache::StringID FSScanner::StringCache::store_string(const String& str) noexcept
 {
     StringID id{};
     if (auto found_it = _str_to_id.find(str); found_it == _str_to_id.end())
@@ -51,7 +51,7 @@ Database::StringCache::StringID Database::StringCache::store_string(const String
     return id;
 }
 
-Database::StringCache::String Database::StringCache::get_string(StringID id) const noexcept
+FSScanner::StringCache::String FSScanner::StringCache::get_string(StringID id) const noexcept
 {
     if (id >= _id_to_str.size())
     {
@@ -61,7 +61,7 @@ Database::StringCache::String Database::StringCache::get_string(StringID id) con
 }
 
 // -----------------------------------------------------------------------------
-// Database implementation
+// FSScanner implementation
 // -----------------------------------------------------------------------------
 
 struct FoundEntry
@@ -80,14 +80,14 @@ struct FoundEntry
     std::shared_ptr<DirWrapper> dir{nullptr};
 };
 
-Database::Database(std::shared_ptr<ConfigParser> conf) noexcept
+FSScanner::FSScanner(std::shared_ptr<ConfigParser> conf) noexcept
     : _conf(std::move(conf)), _existing_db(std::make_unique<ExistingDB>(_conf))
 {
     SymFind::BindMount::init(_conf);
     _bind_mount = SymFind::BindMount::getInstancePtr();
 }
 
-std::pair<bool, std::string> Database::scan() noexcept
+std::pair<bool, std::string> FSScanner::scan() noexcept
 {
     const std::string &database_scan_path = _conf->get_database_scan_path();
     std::shared_ptr<DirWrapper> root_dir(std::make_shared<DirWrapper>(database_scan_path));
@@ -109,7 +109,7 @@ std::pair<bool, std::string> Database::scan() noexcept
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,performance-unnecessary-value-param)
-std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr<DirWrapper> dir) noexcept
+std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_ptr<DirWrapper> dir) noexcept
 {
     const std::string& current_dir_path = dir->get_dir_path();
     const std::string path_plus_slash = current_dir_path.back() == '/' ? current_dir_path : current_dir_path + '/';
@@ -129,7 +129,7 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
         {
             fprintf(stderr, "Skipping `%s': in %s\n", path_plus_slash.c_str(), PRUNE_PATHS_CONFIG);
         }
-        return {false, std::format("Database scan path determined in {} list", PRUNE_PATHS_CONFIG)};
+        return {false, std::format("FSScanner scan path determined in {} list", PRUNE_PATHS_CONFIG)};
     }
 
     if (this_p._conf->get_prune_bind_mounts() && this_p._bind_mount->is_bind_mount(current_dir_path))
@@ -138,7 +138,7 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
         {
             fprintf(stderr, "Skipping `%s': %s\n", path_plus_slash.c_str(), PRUNE_BIND_MOUNTS_CONFIG);
         }
-        return {false, std::format("Database scan path determined in {} list", PRUNE_BIND_MOUNTS_CONFIG)};
+        return {false, std::format("FSScanner scan path determined in {} list", PRUNE_BIND_MOUNTS_CONFIG)};
     }
 
     DIR *dp = dir->get_dp();
@@ -274,7 +274,7 @@ std::pair<bool, std::string> Database::scan_fs(Database &this_p, std::shared_ptr
     return {true, ""};
 }
 
-const Database::FileList &Database::get_found_files() const noexcept
+const FSScanner::FileList &FSScanner::get_found_files() const noexcept
 {
     return _found_files;
 }
