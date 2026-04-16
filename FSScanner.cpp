@@ -14,7 +14,6 @@
 
 #include "BindMount.h"
 #include "Config.h"
-#include "ExistingDB.h"
 #include "Expected.h"
 #include "FSHelper.h"
 #include "DirWrapper.h"
@@ -81,7 +80,7 @@ struct FoundEntry
 };
 
 FSScanner::FSScanner(std::shared_ptr<ConfigParser> conf) noexcept
-    : _conf(std::move(conf)), _existing_db(std::make_unique<ExistingDB>(_conf))
+    : _conf(std::move(conf))
 {
     SymFind::BindMount::init(_conf);
     _bind_mount = SymFind::BindMount::getInstancePtr();

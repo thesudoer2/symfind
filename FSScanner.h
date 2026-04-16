@@ -6,7 +6,6 @@
 #include "BindMount.h"
 #include "Config.h"
 #include "DirWrapper.h"
-#include "ExistingDB.h"
 #include "FileWrapper.h"
 
 // NOLINTBEGIN(readability-identifier-length)
@@ -72,9 +71,6 @@ private: // NOLINT(readability-redundant-access-specifiers)
 
     FileList _found_files;
     StringCache _found_files_paths_cache;
-
-    std::unique_ptr<ExistingDB> _existing_db;
-    // std::unique_ptr<DictBuilder> _dict_builder;
 };
 
 } // namespace SymFind
