@@ -77,4 +77,6 @@ private:
     static std::unordered_set<std::string> _valid_configs;
 };
 
+using ConfigParserPtr = std::shared_ptr<ConfigParser>;
+
 } // namespace SymFind

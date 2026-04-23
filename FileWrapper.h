@@ -51,7 +51,7 @@ public: // NOLINT(readability-redundant-access-specifiers)
     explicit operator bool() const noexcept;
 
 public: // NOLINT(readability-redundant-access-specifiers)
-    expected<std::int32_t, FileWrapper::Errno_t> get_fd() const noexcept;
+    expected<std::int32_t, Errno_t> get_fd() const noexcept;
 
     const FILE* get_cfp() const noexcept;
     FILE* get_fp() noexcept;

@@ -22,13 +22,13 @@ FileWrapper::FileWrapper() noexcept = default;
 FileWrapper::~FileWrapper() noexcept = default;
 
 FileWrapper::FileWrapper(const std::string &file_path, const std::string &mode) noexcept
-    : _fp(std::fopen(file_path.c_str(), mode.c_str()))
 {
+    open(file_path, mode);
 }
 
 bool FileWrapper::operator!() const noexcept
 {
-    return _is_open;
+    return !_is_open;
 }
 
 bool FileWrapper::operator!=(bool com_val) const noexcept
@@ -43,6 +43,10 @@ FileWrapper::operator bool() const noexcept
 
 expected<std::int32_t, FileWrapper::Errno_t> FileWrapper::get_fd() const noexcept
 {
+    if (!_is_open)
+    {
+        return unexpected<Errno_t>(EIO);
+    }
     int fd = fileno(_fp.get()); // NOLINT(readability-identifier-length)
     return (fd == -1) ? unexpected<Errno_t>(errno) : expected<std::int32_t, Errno_t>(fd);
 }

@@ -48,7 +48,7 @@ public:
     bool is_bind_mount(const std::string& path) noexcept;
 
 private: // NOLINT(readability-redundant-access-specifiers)
-    explicit BindMount(std::shared_ptr<ConfigParser> conf) noexcept;
+    explicit BindMount(ConfigParserPtr conf) noexcept;
 
 private: // NOLINT(readability-redundant-access-specifiers)
     void init_bind_mount() noexcept;
@@ -75,7 +75,7 @@ private: // NOLINT(readability-redundant-access-specifiers)
     std::vector<std::string> _bind_mount_paths;
 
     /* Configuration */
-    std::shared_ptr<ConfigParser> _conf;
+    ConfigParserPtr _conf;
 };
 
 } // namespace SymFind

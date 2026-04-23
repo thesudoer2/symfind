@@ -79,11 +79,11 @@ struct FoundEntry
     std::shared_ptr<DirWrapper> dir{nullptr};
 };
 
-FSScanner::FSScanner(std::shared_ptr<ConfigParser> conf) noexcept
-    : _conf(std::move(conf))
+FSScanner::StringCache FSScanner::_found_files_paths_cache{};
+
+FSScanner::FSScanner(ConfigParserPtr conf, BindMount::InstancePtr bind_mount) noexcept
+    : _conf(std::move(conf)), _bind_mount(std::move(bind_mount))
 {
-    SymFind::BindMount::init(_conf);
-    _bind_mount = SymFind::BindMount::getInstancePtr();
 }
 
 std::pair<bool, std::string> FSScanner::scan() noexcept
@@ -101,8 +101,6 @@ std::pair<bool, std::string> FSScanner::scan() noexcept
     {
         return {scan_stat, err_msg};
     }
-
-    // Parse scaned and stored ELF files...
 
     return {true, ""};
 }
@@ -128,7 +126,7 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
         {
             fprintf(stderr, "Skipping `%s': in %s\n", path_plus_slash.c_str(), PRUNE_PATHS_CONFIG);
         }
-        return {false, std::format("FSScanner scan path determined in {} list", PRUNE_PATHS_CONFIG)};
+        return {true, std::format("FSScanner scan path determined in {} list", PRUNE_PATHS_CONFIG)};
     }
 
     if (this_p._conf->get_prune_bind_mounts() && this_p._bind_mount->is_bind_mount(current_dir_path))
@@ -187,7 +185,7 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
                 FSHelper::filename_has_extension(entry.name, STATIC_LIBRARY_EXTENSION) ||
                 FSHelper::filename_has_extension(entry.name, OBJECT_FILE_EXTENSION))
             {
-                StringCache::StringID id = this_p._found_files_paths_cache.store_string(path_plus_slash);
+                StringCache::StringID id = _found_files_paths_cache.store_string(path_plus_slash);
                 this_p._found_files.emplace_back(FileInfo{entry.name, id});
             }
             continue;
@@ -276,6 +274,11 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
 const FSScanner::FileList &FSScanner::get_found_files() const noexcept
 {
     return _found_files;
+}
+
+std::string FSScanner::get_file_info_full_path(const FileInfo &file_info) noexcept
+{
+    return std::string(FSScanner::_found_files_paths_cache.get_string(file_info.path_id) + file_info.name);
 }
 
 } // namespace SymFind

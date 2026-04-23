@@ -54,23 +54,26 @@ public:
     using FileList = std::vector<FileInfo>;
 
 public: // NOLINT(readability-redundant-access-specifiers)
-    explicit FSScanner(std::shared_ptr<ConfigParser> conf) noexcept;
+    explicit FSScanner(ConfigParserPtr conf, BindMount::InstancePtr bind_mount) noexcept;
 
 public: // NOLINT(readability-redundant-access-specifiers)
     std::pair<bool, std::string> scan() noexcept;
 
-    const FileList& get_found_files() const noexcept;
+    __nodiscard const FileList& get_found_files() const noexcept;
+
+    static std::string get_file_info_full_path(const FileInfo&) noexcept;
 
 private:
     static std::pair<bool, std::string> scan_fs(FSScanner &this_p,
                                                   std::shared_ptr<DirWrapper> dir_wrapper) noexcept;
 
 private: // NOLINT(readability-redundant-access-specifiers)
+    static StringCache _found_files_paths_cache;
+
+    ConfigParserPtr _conf;
     BindMount::InstancePtr _bind_mount;
-    std::shared_ptr<ConfigParser> _conf;
 
     FileList _found_files;
-    StringCache _found_files_paths_cache;
 };
 
 } // namespace SymFind

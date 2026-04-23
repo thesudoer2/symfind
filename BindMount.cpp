@@ -17,7 +17,7 @@
 namespace SymFind
 {
 
-BindMount::BindMount(std::shared_ptr<ConfigParser> conf) noexcept : _conf(std::move(conf))
+BindMount::BindMount(ConfigParserPtr conf) noexcept : _conf(std::move(conf))
 {
     init_bind_mount();
 }

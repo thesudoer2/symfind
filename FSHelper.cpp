@@ -18,7 +18,7 @@ namespace SymFind::FSHelper
 // NOLINTBEGIN(readability-identifier-length,cppcoreguidelines-pro-type-vararg)
 int dir_path_cmp(const std::string &a, const std::string &b)
 {
-    auto [ai, bi] = mismatch(a.begin(), a.end(), b.begin(), b.end());
+    auto [ai, bi] = std::mismatch(a.begin(), a.end(), b.begin(), b.end());
     if (ai == a.end() && bi == b.end())
     {
         return 0;
@@ -56,10 +56,11 @@ void string_list_dir_path_sort(std::vector<std::string> &list)
 bool string_list_contains_dir_path(const std::vector<std::string> &list, size_t &idx, const std::string &path)
 {
     int cmp = 0;
-    while (idx < list.size() && (cmp = dir_path_cmp(list[idx], path)) < 0)
+    while (idx < list.size() && (cmp = dir_path_cmp(list[idx], path)) != 0)
     {
         ++idx;
     }
+
     if (idx < list.size() && cmp == 0)
     {
         ++idx;
@@ -122,16 +123,16 @@ bool filename_has_extension(const std::string &filename, const std::string &exte
         return false;
     }
 
-    std::int32_t e_size = extension.size(); // NOLINT
-    const std::string::const_reverse_iterator eit_begin = extension.crbegin();
-    const std::string::const_reverse_iterator eit_end = extension.crend();
-    for (std::string::const_reverse_iterator fit = filename.crbegin(); fit < filename.crend() - e_size; ++fit)
+    std::int32_t ext_size = extension.size(); // NOLINT
+    const std::string::const_reverse_iterator rit_begin = extension.crbegin();
+    const std::string::const_reverse_iterator rit_end = extension.crend();
+    for (std::string::const_reverse_iterator f_rit = filename.crbegin(); f_rit < filename.crend() - ext_size; ++f_rit)
     {
-        if (*fit == *eit_begin) [[unlikely]]
+        if (*f_rit == *rit_begin) [[unlikely]]
         {
-            if (iterators_are_the_same(fit, fit + e_size, eit_begin, eit_end))
+            if (iterators_are_the_same(f_rit, f_rit + ext_size, rit_begin, rit_end))
             {
-                if (char prev_ch = *(fit - 1); fit != filename.crbegin() && prev_ch != '.')
+                if (char prev_ch = *(f_rit - 1); f_rit != filename.crbegin() && prev_ch != '.')
                 {
                     continue;
                 }
