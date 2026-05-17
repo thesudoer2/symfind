@@ -62,4 +62,6 @@ extern bool filesystem_is_excluded(const std::vector<std::string> &list, const s
 
 extern bool filename_has_extension(const std::string& filename, const std::string& extension);
 
+bool is_file_elf_or_archive(const std::string& path) noexcept;
+
 } // namespace SymFind::FSHelper

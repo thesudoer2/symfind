@@ -10,30 +10,19 @@
 #include "Symbol.h"
 #include "Threading.h"
 
-#include <oneapi/tbb/concurrent_hash_map.h>
-
 
 // NOLINTBEGIN(cppcoreguidelines-special-member-functions,readability-identifier-length,readability-redundant-access-specifiers)
 
 namespace SymFind
 {
 
-using HashMap = oneapi::tbb::concurrent_hash_map<SymbolName, SymbolRefs>;
-using HashMapAccessor = HashMap::accessor;
-
 using FileIDList = std::vector<std::uint32_t>;
 
-class SymTableGenerator final : NoCopy, NoMove
+class SymFinder final : NoCopy, NoMove
 {
 public:
-    explicit SymTableGenerator(ConfigParserPtr conf, const FSScanner &fsscanner) noexcept;
+    explicit SymFinder(ConfigParserPtr conf, const FSScanner &fsscanner) noexcept;
 
-public:
-    __nodiscard SymbolRefsPtr find_sym(const std::string &sym_name) const noexcept;
-
-    // >>>>> DEBUGGING
-    HashMap _symtable;
-    // <<<<< DEBUGGING
 private:
     template <typename W>
     void launch_threads(ThreadList &thread_list, W worker);
@@ -44,9 +33,13 @@ private:
 };
 
 template <typename W>
-void SymTableGenerator::launch_threads(ThreadList &thread_list, W worker)
+void SymFinder::launch_threads(ThreadList &thread_list, W worker)
 {
     const FSScanner::FileList &found_files = _fsscanner.get_found_files();
+
+    // >>>>> DEBUGGING
+    std::cout << "found_files.size(): " << found_files.size() << ", found_files.capacity(): " << found_files.capacity() << "\n";
+    // <<<<< DEBUGGING
 
     const std::size_t N = found_files.size();
     const std::size_t T = thread_list.capacity();
@@ -77,7 +70,7 @@ void SymTableGenerator::launch_threads(ThreadList &thread_list, W worker)
         }
 
         // TODO: Use a better parameter or config to determine verbosity!
-        thread_list.emplace_back(Thread(worker, std::move(file_ids), std::ref(found_files), std::ref(_symtable), _conf->get_debug_pruning()));
+        thread_list.emplace_back(Thread(worker, std::move(file_ids), std::ref(found_files), _conf->get_debug_pruning()));
 
         begin_index = end_index;
     }

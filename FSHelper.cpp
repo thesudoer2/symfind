@@ -97,8 +97,12 @@ bool filesystem_is_excluded(const std::vector<std::string> &list, const std::str
     return false;
 }
 
+// Compare [f_begin, f_end) and [s_begin, s_end)
 template <typename Iterator>
-bool iterators_are_the_same(const Iterator& f_begin, const Iterator& f_end, const Iterator& s_begin, const Iterator& s_end) noexcept
+bool iterators_are_the_same(const Iterator &f_begin,
+                            const Iterator &f_end,
+                            const Iterator &s_begin,
+                            const Iterator &s_end) noexcept
 {
     if (std::distance(f_begin, f_end) != std::distance(s_begin, s_end))
     {
@@ -106,6 +110,7 @@ bool iterators_are_the_same(const Iterator& f_begin, const Iterator& f_end, cons
     }
 
     std::size_t distance = std::distance(f_begin, f_end);
+
     for (std::size_t i{}; i < distance; ++i)
     {
         if (*(f_begin + i) != *(s_begin + i))
@@ -124,17 +129,34 @@ bool filename_has_extension(const std::string &filename, const std::string &exte
     }
 
     std::int32_t ext_size = extension.size(); // NOLINT
-    const std::string::const_reverse_iterator rit_begin = extension.crbegin();
-    const std::string::const_reverse_iterator rit_end = extension.crend();
-    for (std::string::const_reverse_iterator f_rit = filename.crbegin(); f_rit < filename.crend() - ext_size; ++f_rit)
+    const std::string::const_reverse_iterator e_rit_begin = extension.crbegin();
+    const std::string::const_reverse_iterator e_rit_end = extension.crend();
+    for (std::string::const_reverse_iterator f_rit = filename.crbegin(); f_rit != filename.crend() - ext_size; ++f_rit)
     {
-        if (*f_rit == *rit_begin) [[unlikely]]
+        if (*f_rit == *e_rit_begin) [[unlikely]]
         {
-            if (iterators_are_the_same(f_rit, f_rit + ext_size, rit_begin, rit_end))
+            if (iterators_are_the_same(f_rit, f_rit + ext_size, e_rit_begin, e_rit_end))
             {
-                if (char prev_ch = *(f_rit - 1); f_rit != filename.crbegin() && prev_ch != '.')
+                // Ensure the matched string is not in the middle of a word (checking the previous character (the right character -- left to right)).
+                if (f_rit != filename.crbegin() && *(f_rit - 1) != '.')
                 {
                     continue;
+                }
+
+                // If the matched string is at begining of the filename and there is no character in its left side!
+                if (f_rit == filename.crbegin())
+                {
+                    return true;
+                }
+
+                // Check there is no other extensions in the matched extension's right side (like *.so.3.gz)
+                for (std::string::const_reverse_iterator after_rit = f_rit - 1; after_rit != filename.crbegin() - 1;
+                     --after_rit)
+                {
+                    if (char ch = *after_rit; std::isdigit(ch) == 0 && ch != '.')
+                    {
+                        return false;
+                    }
                 }
                 return true;
             }

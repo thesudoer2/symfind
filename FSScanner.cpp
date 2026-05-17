@@ -22,6 +22,9 @@
 #define STATIC_LIBRARY_EXTENSION ".a"
 #define OBJECT_FILE_EXTENSION ".o"
 
+#define FOUND_FILES_RESERVED_SIZE 40'000
+
+
 // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg,readability-identifier-length,cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
 namespace SymFind
@@ -84,6 +87,7 @@ FSScanner::StringCache FSScanner::_found_files_paths_cache{};
 FSScanner::FSScanner(ConfigParserPtr conf, BindMount::InstancePtr bind_mount) noexcept
     : _conf(std::move(conf)), _bind_mount(std::move(bind_mount))
 {
+    _found_files.reserve(FOUND_FILES_RESERVED_SIZE);
 }
 
 std::pair<bool, std::string> FSScanner::scan() noexcept
@@ -179,11 +183,11 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
             break;
         }
 
-        if (bool(entry.entry_type & FoundEntry::REG_FILE))
+        if ((bool)(entry.entry_type & FoundEntry::REG_FILE))
         {
             if (FSHelper::filename_has_extension(entry.name, SHARED_LIBRARY_EXTENSION) ||
-                FSHelper::filename_has_extension(entry.name, STATIC_LIBRARY_EXTENSION) ||
-                FSHelper::filename_has_extension(entry.name, OBJECT_FILE_EXTENSION))
+                 FSHelper::filename_has_extension(entry.name, STATIC_LIBRARY_EXTENSION) ||
+                 FSHelper::filename_has_extension(entry.name, OBJECT_FILE_EXTENSION))
             {
                 StringCache::StringID id = _found_files_paths_cache.store_string(path_plus_slash);
                 this_p._found_files.emplace_back(FileInfo{entry.name, id});
@@ -253,10 +257,7 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
             }
         }
 
-        // _corpus->add_file(path_plus_slash + entry.name, entry.dt);
-        // _dict_builder->add_file(path_plus_slash + entry.name, entry.dt);
-
-        if (bool(entry.entry_type & FoundEntry::DIRECTORY) && fd != -1)
+        if ((bool)(entry.entry_type & FoundEntry::DIRECTORY) && fd != -1)
         {
             auto [stat, message] = scan_fs(this_p, entry.dir);
             if (!stat)

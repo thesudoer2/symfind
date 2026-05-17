@@ -11,6 +11,13 @@
 namespace SymFind
 {
 
-bool parse_symtables(const std::string &file, SymbolEntries& parsed_symbol_entries, std::string* err_msg = nullptr) noexcept;
+using SymbolShouldBeIgnoredCallback = std::function<bool(const SymbolEntry &)>;
+
+bool parse_symtables(const std::string &file,
+                     SymbolEntries &parsed_symbol_entries,
+                     const SymbolShouldBeIgnoredCallback &ignore_symbol_callback,
+                     std::string *err_msg = nullptr) noexcept;
+
+std::string demangle_symbol(const std::string &sym_name) noexcept;
 
 } // namespace SymFind

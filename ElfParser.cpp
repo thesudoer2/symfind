@@ -3,10 +3,10 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <cxxabi.h>
 #include <gelf.h>
 #include <libelf.h>
 #include <unistd.h>
-#include <cxxabi.h>
 
 #include <iostream>
 #include <memory>
@@ -40,11 +40,11 @@ public:
 
 using ElfPtr = std::shared_ptr<Elf>;
 
-std::string demangle(const std::string &name)
+std::string demangle(const std::string &sym_name) noexcept
 {
     int status = 0;
 
-    std::unique_ptr<char, void (*)(void *)> demangled(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
+    std::unique_ptr<char, void (*)(void *)> demangled(abi::__cxa_demangle(sym_name.c_str(), nullptr, nullptr, &status),
                                                       std::free);
 
     if (status == 0 && demangled)
@@ -52,11 +52,11 @@ std::string demangle(const std::string &name)
         return demangled.get();
     }
 
-    return name; // fallback if not mangled
+    return sym_name; // fallback if not mangled
 }
 
 
-inline ElfPtr make_elf(Elf* raw)
+inline ElfPtr make_elf(Elf *raw)
 {
     return ElfPtr(raw, ElfCloser{});
 }
@@ -104,7 +104,8 @@ void parse_symtable(ElfPtr elf,
                     Elf_Scn *scn,
                     GElf_Shdr &shdr,
                     SymbolEntries &parsed_symbol_entries,
-                    SymbolSourceSection sec) noexcept
+                    SymbolSourceSection sec,
+                    const SymbolShouldBeIgnoredCallback &ignore_symbol_callback) noexcept
 {
     Elf_Data *data = elf_getdata(scn, nullptr);
 
@@ -113,7 +114,7 @@ void parse_symtable(ElfPtr elf,
     Elf_Scn *str_scn = elf_getscn(elf.get(), shdr.sh_link);
     Elf_Data *str_data = elf_getdata(str_scn, nullptr);
 
-    for (std::size_t i = 0; i < count; i++)
+    for (std::size_t i = 0; i < count; ++i)
     {
         GElf_Sym sym;
 
@@ -121,7 +122,9 @@ void parse_symtable(ElfPtr elf,
         gelf_getsym(data, i, &sym);
 
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        std::string sym_name = reinterpret_cast<char*>(str_data->d_buf) + sym.st_name;
+        std::string sym_name = reinterpret_cast<char *>(str_data->d_buf) + sym.st_name;
+
+        // TODO: Make demangle decision based on conditions like arguments.
         sym_name = demangle(sym_name);
 
         // NOLINTNEXTLINE(bugprone-unhandled-exception-at-new)
@@ -134,12 +137,18 @@ void parse_symtable(ElfPtr elf,
             .offset = 0, // TODO: Get symbol offset.
         }};
 
-        parsed_symbol_entries.emplace_back(
-            SymbolEntry{.name = std::move(sym_name), .metadata = std::move(sym_metadata)});
+        SymbolEntry sym_ent{.name = std::move(sym_name), .metadata = std::move(sym_metadata)};
+        if (!ignore_symbol_callback(sym_ent))
+        {
+            sym_ent.name = demangle(sym_ent.name);
+            parsed_symbol_entries.emplace_back(std::move(sym_ent));
+        }
     }
 }
 
-void parse_elf(ElfPtr elf, SymbolEntries &parsed_symbol_entries) noexcept
+void parse_elf(ElfPtr elf,
+               SymbolEntries &parsed_symbol_entries,
+               const SymbolShouldBeIgnoredCallback &ignore_symbol_callback) noexcept
 {
     size_t shstrndx{0};
 
@@ -154,16 +163,19 @@ void parse_elf(ElfPtr elf, SymbolEntries &parsed_symbol_entries) noexcept
 
         if (shdr.sh_type == SHT_SYMTAB)
         {
-            parse_symtable(elf, scn, shdr, parsed_symbol_entries, SymbolSourceSection::SYMTAB);
+            parse_symtable(elf, scn, shdr, parsed_symbol_entries, SymbolSourceSection::SYMTAB, ignore_symbol_callback);
         }
         else if (shdr.sh_type == SHT_DYNSYM)
         {
-            parse_symtable(elf, scn, shdr, parsed_symbol_entries, SymbolSourceSection::SYMTAB);
+            parse_symtable(elf, scn, shdr, parsed_symbol_entries, SymbolSourceSection::DYNSYM, ignore_symbol_callback);
         }
     }
 }
 
-void parse_archive(int fd, ElfPtr archive, SymbolEntries &parsed_symbol_entries) noexcept
+void parse_archive(int fd,
+                   ElfPtr archive,
+                   SymbolEntries &parsed_symbol_entries,
+                   const SymbolShouldBeIgnoredCallback &ignore_symbol_callback) noexcept
 {
     Elf_Arhdr *arh = nullptr;
     for (ElfPtr member = make_elf(elf_begin(fd, ELF_C_READ, archive.get())); member != nullptr;
@@ -177,14 +189,17 @@ void parse_archive(int fd, ElfPtr archive, SymbolEntries &parsed_symbol_entries)
 
         if (elf_kind(member.get()) == ELF_K_ELF)
         {
-            parse_elf(member, parsed_symbol_entries);
+            parse_elf(member, parsed_symbol_entries, ignore_symbol_callback);
         }
 
         (void)elf_next(member.get());
     }
 }
 
-bool parse_symtables(const std::string &file, SymbolEntries &parsed_symbol_entries, std::string *err_msg) noexcept
+bool parse_symtables(const std::string &file,
+                     SymbolEntries &parsed_symbol_entries,
+                     const SymbolShouldBeIgnoredCallback &ignore_symbol_callback,
+                     std::string *err_msg) noexcept
 {
     if (elf_current_version == EV_NONE) [[unlikely]]
     {
@@ -228,11 +243,11 @@ bool parse_symtables(const std::string &file, SymbolEntries &parsed_symbol_entri
 
     if (kind == ELF_K_ELF)
     {
-        parse_elf(elf, parsed_symbol_entries);
+        parse_elf(elf, parsed_symbol_entries, ignore_symbol_callback);
     }
     else if (kind == ELF_K_AR)
     {
-        parse_archive(fd, elf, parsed_symbol_entries);
+        parse_archive(fd, elf, parsed_symbol_entries, ignore_symbol_callback);
     }
     else
     {
