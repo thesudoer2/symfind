@@ -26,6 +26,9 @@ Debug/
 RelWithDebInfo/
 target/
 
+# Object files
+*.o
+
 # Editors
 *.swp
 .vscode/
