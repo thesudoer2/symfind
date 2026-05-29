@@ -1,6 +1,7 @@
 #include "SymFinder.h"
 
 #include <format>
+#include <functional>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -24,88 +25,8 @@
 namespace SymFind
 {
 
-enum class SymbolDefinitionToPrint : std::uint8_t
+void worker(const FileIDList &file_ids, const FSScanner::FileList &found_files, IgnoreSymbolCallback ignore_symbol, bool verbose)
 {
-    UNKNOWN = 0,
-    ONLY_DEFINED,
-    ONLY_RUNTIME,
-    SHOW_BOTH,
-};
-
-static const std::string sym_regexp{"^([0-9a-zA-Z_])+"};
-
-bool symbol_should_be_stored(const SymbolEntry &sym_ent,
-                             SymbolDefinitionToPrint def_to_print,
-                             const StringComparator &compare_sym_names) noexcept
-{
-    if (compare_sym_names(sym_ent.name))
-    {
-        const auto &sym_metadata = sym_ent.metadata;
-        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
-                                         def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
-        {
-            return true;
-        }
-
-        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
-                                         def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-std::string regex_escape(const std::string& text)
-{
-    static const std::string special_chars = R"(.^$|()[]{}*+?\/)";
-    std::string escaped;
-    escaped.reserve(text.size() * 2);  // rough estimate
-
-    for (char c : text)
-    {
-        if (special_chars.find(c) != std::string::npos)
-        {
-            escaped += '\\';
-        }
-        escaped += c;
-    }
-
-    return escaped;
-}
-
-void worker(const FileIDList &file_ids, const FSScanner::FileList &found_files, bool verbose)
-{
-    // std::string target_sym_name{"printf"};
-    // std::string target_sym_name{"std::__cxx11::messages<char>::_M_convert_from_char(char*) const"};
-    // std::string target_sym_name{"std::__cxx11::messages<char>::_M_convert_from_char"};
-    // std::string target_sym_name{"_ZNKSt8messagesIcE20_M_convert_from_charEPc"};
-    // std::string target_sym_name{"convert_from_char"};
-    // std::string target_sym_name{"QBasicMutex::unlockInternalFutex(void*)"};
-    // std::string target_sym_name{"_ZN4llvm15SmallVectorBaseIjE8grow_podEPvmm"};
-    // std::string target_sym_name{"llvm::SmallVectorBase<unsigned int>::grow_pod"};
-    std::string target_sym_name{"llvm::SmallVectorBase<unsigned int>::grow_pod(void*, unsigned long, unsigned long)"};
-    // std::string target_sym_name{":grow_pod"};
-
-    // Only for Regex matcher
-    // target_sym_name = regex_escape(target_sym_name);
-
-    // std::cout << ">>>>> escaped: \"" << target_sym_name << "\"\n";
-    // exit(85);
-
-    // TODO2: Take argument or something to decide using "string_default_comparator" or "string_fuzzy_comparator" or "string_regex_comparator".
-    auto string_comparator = make_string_comparator(StringComparatorType::REGEX, target_sym_name);
-    // auto string_comparator = make_string_comparator(StringComparatorType::FUZZY, target_sym_name);
-    // auto string_comparator = make_string_comparator(StringComparatorType::DEFAULT, target_sym_name);
-
-    auto ignore_symbol = [&string_comparator](const SymbolEntry &sym_ent) -> bool {
-        // TODO1: Take argument to show only "DEFINED" symbols or all symbols.
-        return !symbol_should_be_stored(sym_ent,
-                                        SymbolDefinitionToPrint::ONLY_DEFINED,
-                                        *string_comparator);
-    };
-
     SymbolEntries parsed_symbol_entries;
     parsed_symbol_entries.reserve(MAX_MATCHED_SYMBOLS_COUNTS);
 
@@ -148,11 +69,6 @@ void worker(const FileIDList &file_ids, const FSScanner::FileList &found_files, 
         }
 
         parsed_symbol_entries.clear();
-
-        // >>>>> DEBUGGING
-        // std::cout << "parsed_symbol_entries.size(): " << parsed_symbol_entries.size()
-        //           << ", parsed_symbol_entries.capacity(): " << parsed_symbol_entries.capacity() << std::endl;
-        // <<<<< DEBUGGING
     }
 }
 
@@ -170,7 +86,7 @@ std::uint16_t get_proper_thread_count_to_process_list(std::size_t list_size)
     return std::max<std::uint16_t>(1, static_cast<std::uint16_t>(list_size / MINIMUM_FILES_PER_THREAD));
 }
 
-SymFinder::SymFinder(ConfigParserPtr conf, const FSScanner &fsscanner) noexcept
+SymFinder::SymFinder(ConfigParserPtr conf, const FSScanner &fsscanner, IgnoreSymbolCallback ignore_symbol) noexcept
     : _conf(std::move(conf)), _fsscanner(fsscanner)
 {
     const std::size_t found_files_count = _fsscanner.get_found_files().size();
@@ -183,7 +99,7 @@ SymFinder::SymFinder(ConfigParserPtr conf, const FSScanner &fsscanner) noexcept
     thread_list.reserve(THREADS_COUNT);
 
     // Initialize threads and feed them to process
-    launch_threads(thread_list, worker);
+    launch_threads(thread_list, worker, std::move(ignore_symbol));
 }
 
 } // namespace SymFind

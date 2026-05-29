@@ -16,9 +16,10 @@ namespace SymFind
 
 enum class StringComparatorType : std::uint8_t
 {
-    DEFAULT = 0,
-    REGEX = 1,
-    FUZZY = 2,
+    UNKNOWN = 0,
+    DEFAULT = 1,
+    REGEX = 2,
+    FUZZY = 3,
 };
 
 class StringComparator
@@ -84,7 +85,6 @@ StringComparatorPtr make_string_comparator(StringComparatorType comp_type, Args 
     case StringComparatorType::DEFAULT:
         return std::make_unique<DefaultStringComparator>(std::forward<Args>(args)...);
     case StringComparatorType::REGEX:
-        // return std::make_unique<StdRegexStringComparator>(std::forward<Args>(args)...);
         return std::make_unique<Re2RegexStringComparator>(std::forward<Args>(args)...);
     case StringComparatorType::FUZZY:
         return std::make_unique<FuzzyStringComparator>(std::forward<Args>(args)...);

@@ -14,6 +14,33 @@ namespace SymFind
 {
 
 // -----------------------------------------------------------------------------
+// Free Functions
+// -----------------------------------------------------------------------------
+
+namespace
+{
+
+std::string regex_escape(const std::string& text)
+{
+    static const std::string special_chars = R"(.^$|()[]{}*+?\/)";
+    std::string escaped;
+    escaped.reserve(text.size() * 2);  // rough estimate
+
+    for (char c : text)
+    {
+        if (special_chars.find(c) != std::string::npos)
+        {
+            escaped += '\\';
+        }
+        escaped += c;
+    }
+
+    return escaped;
+}
+
+} // namespace (anonymouse)
+
+// -----------------------------------------------------------------------------
 // Default String Comparator Implementation
 // -----------------------------------------------------------------------------
 
@@ -44,24 +71,6 @@ bool StdRegexStringComparator::operator()(const std::string &str_to_compare) con
 // Re2 Regex String Comparator Implementation
 // -----------------------------------------------------------------------------
 
-static inline std::string regex_escape(const std::string& text)
-{
-    static const std::string special_chars = R"(.^$|()[]{}*+?\/)";
-    std::string escaped;
-    escaped.reserve(text.size() * 2);  // rough estimate
-
-    for (char c : text)
-    {
-        if (special_chars.find(c) != std::string::npos)
-        {
-            escaped += '\\';
-        }
-        escaped += c;
-    }
-
-    return escaped;
-}
-
 Re2RegexStringComparator::Re2RegexStringComparator(const std::string &fixed_str) noexcept
     : _regexp(regex_escape(fixed_str))
 {
@@ -69,7 +78,6 @@ Re2RegexStringComparator::Re2RegexStringComparator(const std::string &fixed_str)
 
 bool Re2RegexStringComparator::operator()(const std::string &str_to_compare) const noexcept
 {
-    // return RE2::FullMatch(str_to_compare, _regexp);
     return RE2::PartialMatch(str_to_compare, _regexp);
 }
 

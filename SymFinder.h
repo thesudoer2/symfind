@@ -7,6 +7,7 @@
 #include "Global.h"
 #include "NoCopy.h"
 #include "NoMove.h"
+#include "StringComparator.h"
 #include "Symbol.h"
 #include "Threading.h"
 
@@ -18,28 +19,26 @@ namespace SymFind
 
 using FileIDList = std::vector<std::uint32_t>;
 
+using IgnoreSymbolCallback = std::function<bool(const SymFind::SymbolEntry &)>;
+
 class SymFinder final : NoCopy, NoMove
 {
 public:
-    explicit SymFinder(ConfigParserPtr conf, const FSScanner &fsscanner) noexcept;
+    explicit SymFinder(ConfigParserPtr conf, const FSScanner &fsscanner, IgnoreSymbolCallback ignore_symbol) noexcept;
 
 private:
-    template <typename W>
-    void launch_threads(ThreadList &thread_list, W worker);
+    template <typename W, typename... WorkerArgs>
+    void launch_threads(ThreadList &thread_list, W worker, WorkerArgs &&...worker_args);
 
 private:
     ConfigParserPtr _conf;
     const FSScanner &_fsscanner;
 };
 
-template <typename W>
-void SymFinder::launch_threads(ThreadList &thread_list, W worker)
+template <typename W, typename... WorkerArgs>
+void SymFinder::launch_threads(ThreadList &thread_list, W worker, WorkerArgs &&...worker_args)
 {
     const FSScanner::FileList &found_files = _fsscanner.get_found_files();
-
-    // >>>>> DEBUGGING
-    std::cout << "found_files.size(): " << found_files.size() << ", found_files.capacity(): " << found_files.capacity() << "\n";
-    // <<<<< DEBUGGING
 
     const std::size_t N = found_files.size();
     const std::size_t T = thread_list.capacity();
@@ -70,7 +69,11 @@ void SymFinder::launch_threads(ThreadList &thread_list, W worker)
         }
 
         // TODO: Use a better parameter or config to determine verbosity!
-        thread_list.emplace_back(Thread(worker, std::move(file_ids), std::ref(found_files), _conf->get_debug_pruning()));
+        thread_list.emplace_back(Thread(worker,
+                                        std::move(file_ids),
+                                        std::ref(found_files),
+                                        std::forward<WorkerArgs>(worker_args)...,
+                                        _conf->get_debug_pruning()));
 
         begin_index = end_index;
     }
