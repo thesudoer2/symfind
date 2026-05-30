@@ -43,4 +43,4 @@ compile_commands.*
 
 # Perf/flamegraph
 perf.data*
-flamegraph.*
+flamegraph*.svg
