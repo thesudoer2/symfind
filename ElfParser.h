@@ -18,6 +18,4 @@ bool parse_symtables(const std::string &file,
                      const SymbolShouldBeIgnoredCallback &ignore_symbol_callback,
                      std::string *err_msg = nullptr) noexcept;
 
-std::string demangle_symbol(const std::string &sym_name) noexcept;
-
 } // namespace SymFind

@@ -40,21 +40,47 @@ public:
 
 using ElfPtr = std::shared_ptr<Elf>;
 
-std::string demangle(const std::string &sym_name) noexcept
+class Demangler final
 {
-    int status = 0;
-
-    std::unique_ptr<char, void (*)(void *)> demangled(abi::__cxa_demangle(sym_name.c_str(), nullptr, nullptr, &status),
-                                                      std::free);
-
-    if (status == 0 && demangled)
+public:
+    Demangler() noexcept : _buffer_size(256), _buffer(static_cast<char *>(std::malloc(_buffer_size)))
     {
-        return demangled.get();
     }
 
-    return sym_name; // fallback if not mangled
-}
+    std::string demangle(const std::string& sym_name)
+    {
+        int status = 0;
 
+        char* result = abi::__cxa_demangle(
+            sym_name.c_str(),
+            _buffer,
+            &_buffer_size,
+            &status);
+
+        if (status != 0 || result == nullptr)
+        {
+            return std::string(sym_name);
+        }
+
+        _buffer = result;  // may have changed due to realloc
+        return result;
+    }
+
+    ~Demangler() noexcept
+    {
+        std::free(_buffer);
+    }
+
+    Demangler(const Demangler&) noexcept = delete;
+    Demangler(Demangler&&) noexcept = delete;
+
+    Demangler& operator=(const Demangler&) noexcept = delete;
+    Demangler& operator=(Demangler&&) noexcept = delete;
+
+private:
+    std::size_t _buffer_size = 0;
+    char* _buffer = nullptr;
+};
 
 inline ElfPtr make_elf(Elf *raw)
 {
@@ -107,6 +133,8 @@ void parse_symtable(ElfPtr elf,
                     SymbolSourceSection sec,
                     const SymbolShouldBeIgnoredCallback &ignore_symbol_callback) noexcept
 {
+    static thread_local Demangler demangler;
+
     Elf_Data *data = elf_getdata(scn, nullptr);
 
     std::size_t count = shdr.sh_size / shdr.sh_entsize;
@@ -125,7 +153,7 @@ void parse_symtable(ElfPtr elf,
         std::string sym_name = reinterpret_cast<char *>(str_data->d_buf) + sym.st_name;
 
         // TODO: Make demangle decision based on conditions like arguments.
-        sym_name = demangle(sym_name);
+        sym_name = demangler.demangle(sym_name);
 
         // NOLINTNEXTLINE(bugprone-unhandled-exception-at-new)
         SymbolMetaDataPtr sym_metadata{new SymbolMetaData{
@@ -140,7 +168,6 @@ void parse_symtable(ElfPtr elf,
         SymbolEntry sym_ent{.name = std::move(sym_name), .metadata = std::move(sym_metadata)};
         if (!ignore_symbol_callback(sym_ent))
         {
-            sym_ent.name = demangle(sym_ent.name);
             parsed_symbol_entries.emplace_back(std::move(sym_ent));
         }
     }
