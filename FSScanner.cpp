@@ -18,11 +18,23 @@
 #include "FSHelper.h"
 #include "DirWrapper.h"
 
-#define SHARED_LIBRARY_EXTENSION ".so"
-#define STATIC_LIBRARY_EXTENSION ".a"
-#define OBJECT_FILE_EXTENSION ".o"
 
 #define FOUND_FILES_RESERVED_SIZE 40'000
+
+#define SHARED_LIBRARY_EXTENSION "so"
+#define STATIC_LIBRARY_EXTENSION "a"
+#define OBJECT_FILE_EXTENSION "o"
+
+namespace
+{
+
+const std::vector<std::string> tracking_extensions{
+    SHARED_LIBRARY_EXTENSION,
+    OBJECT_FILE_EXTENSION,
+    STATIC_LIBRARY_EXTENSION,
+};
+
+} // namespace
 
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg,readability-identifier-length,cppcoreguidelines-pro-bounds-array-to-pointer-decay)
@@ -185,9 +197,7 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
 
         if ((bool)(entry.entry_type & FoundEntry::REG_FILE))
         {
-            if (FSHelper::filename_has_extension(entry.name, SHARED_LIBRARY_EXTENSION) ||
-                 FSHelper::filename_has_extension(entry.name, STATIC_LIBRARY_EXTENSION) ||
-                 FSHelper::filename_has_extension(entry.name, OBJECT_FILE_EXTENSION))
+            if (FSHelper::filename_has_any_of_extensions(entry.name, tracking_extensions))
             {
                 StringCache::StringID id = _found_files_paths_cache.store_string(path_plus_slash);
                 this_p._found_files.emplace_back(FileInfo{entry.name, id});

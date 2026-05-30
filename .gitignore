@@ -37,3 +37,7 @@ target/
 *.out
 *.log
 compile_commands.*
+
+# Perf/flamegraph
+perf.data*
+flamegraph.*
