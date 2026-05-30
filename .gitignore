@@ -11,6 +11,9 @@
 # Undo ignore for LICENSE
 !LICENSE
 
+# Undo ignore for Makefile
+!Makefile
+
 # Plain text files
 *.txt
 
