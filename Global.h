@@ -10,3 +10,24 @@
 #define __nodiscard [[nodiscard]]
 #define __nodiscard_msg(msg) [[nodiscard(msg)]]
 #endif
+
+#ifndef SYMFIND_PACK
+#if defined(_MSC_VER) // Microsoft MSVC
+#define SYMFIND_PACK(...) __pragma(pack(push, 1)) __VA_ARGS__ __pragma(pack(pop))
+#elif defined(__GNUC__) || defined(__clang__) // GCC/CLANG
+#define SYMFIND_PACK(...) __VA_ARGS__ __attribute__((packed))
+#else
+#define SYMFIND_PACK(...) __VA_ARGS__
+#endif
+#endif
+
+// Debug printf.
+extern bool use_debug;
+#define dprintf(...)                                                                                                   \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (use_debug)                                                                                                 \
+        {                                                                                                              \
+            fprintf(stderr, __VA_ARGS__);                                                                              \
+        }                                                                                                              \
+    } while (false)

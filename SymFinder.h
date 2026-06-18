@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <tuple>
 
 #include "FSScanner.h"
 #include "Global.h"
@@ -16,8 +17,6 @@
 
 namespace SymFind
 {
-
-using FileIDList = std::vector<std::uint32_t>;
 
 using IgnoreSymbolCallback = std::function<bool(const SymFind::SymbolEntry &)>;
 
@@ -35,9 +34,12 @@ private:
     const FSScanner &_fsscanner;
 };
 
+// TODO: This function has lots of duplication with DatabaseBuilder::launch_threads function. Separate file-id distribution logic and use in both.
 template <typename W, typename... WorkerArgs>
 void SymFinder::launch_threads(ThreadList &thread_list, W worker, WorkerArgs &&...worker_args)
 {
+    auto copied_args = std::make_tuple(std::forward<WorkerArgs>(worker_args)...);
+
     const FSScanner::FileList &found_files = _fsscanner.get_found_files();
 
     const std::size_t N = found_files.size();
@@ -69,11 +71,15 @@ void SymFinder::launch_threads(ThreadList &thread_list, W worker, WorkerArgs &&.
         }
 
         // TODO: Use a better parameter or config to determine verbosity!
-        thread_list.emplace_back(Thread(worker,
-                                        std::move(file_ids),
-                                        std::ref(found_files),
-                                        std::forward<WorkerArgs>(worker_args)...,
-                                        _conf->get_debug_pruning()));
+        std::apply(
+            [&](const auto &...copied_args) {
+                thread_list.emplace_back(Thread(worker,
+                                                std::move(file_ids),
+                                                std::ref(found_files),
+                                                copied_args...,
+                                                this->_conf->get_debug_pruning()));
+            },
+            copied_args);
 
         begin_index = end_index;
     }

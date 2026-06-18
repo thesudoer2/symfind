@@ -18,12 +18,11 @@
 #include "FSHelper.h"
 #include "DirWrapper.h"
 
-
 #define FOUND_FILES_RESERVED_SIZE 40'000
 
-#define SHARED_LIBRARY_EXTENSION "so"
-#define STATIC_LIBRARY_EXTENSION "a"
-#define OBJECT_FILE_EXTENSION "o"
+#define SHARED_LIBRARY_EXTENSION ".so"
+#define STATIC_LIBRARY_EXTENSION ".a"
+#define OBJECT_FILE_EXTENSION ".o"
 
 namespace
 {
@@ -80,11 +79,17 @@ FSScanner::StringCache::String FSScanner::StringCache::get_string(StringID id) c
 
 struct FoundEntry
 {
-    enum EntryType : std::uint8_t
+    enum EntryType : std::uint16_t
     {
-        UNKNOWN = 0x01,
-        DIRECTORY = 0x02,
-        REG_FILE = 0x04,
+        UNKNOWN = 0x001,
+        DIRECTORY = 0x002,
+        REG_FILE = 0x004,
+        FIFO = 0x008,
+        CHARACTER_DEV = 0x010,
+        BLOCK_DEV = 0x020,
+        LINK = 0x040,
+        SOCKET = 0x080,
+        WHT = 0x100,
     };
 
     std::string name;
@@ -126,14 +131,6 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
 {
     const std::string& current_dir_path = dir->get_dir_path();
     const std::string path_plus_slash = current_dir_path.back() == '/' ? current_dir_path : current_dir_path + '/';
-
-    expected<int, DirWrapper::Errno_t> fd_res = dir->get_fd();
-    if (!fd_res.has_value()) [[unlikely]]
-    {
-        return {false, ""};
-    }
-
-    int fd = fd_res.value();
 
     if (std::size_t conf_prunepaths_index{0};
         FSHelper::string_list_contains_dir_path(this_p._conf->get_prune_paths(), conf_prunepaths_index, current_dir_path))
@@ -190,6 +187,24 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
         case DT_REG:
             entry.entry_type = FoundEntry::REG_FILE;
             break;
+        case DT_FIFO:
+            entry.entry_type = FoundEntry::FIFO;
+            break;
+        case DT_CHR:
+            entry.entry_type = FoundEntry::CHARACTER_DEV;
+            break;
+        case DT_BLK:
+            entry.entry_type = FoundEntry::BLOCK_DEV;
+            break;
+        case DT_LNK:
+            entry.entry_type = FoundEntry::LINK;
+            break;
+        case DT_SOCK:
+            entry.entry_type = FoundEntry::SOCKET;
+            break;
+        case DT_WHT:
+            entry.entry_type = FoundEntry::WHT;
+            break;
         default:
             entry.entry_type = FoundEntry::UNKNOWN;
             break;
@@ -204,6 +219,10 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
             }
             continue;
         }
+        else if (!(bool)(entry.entry_type & FoundEntry::UNKNOWN) && !(bool)(entry.entry_type & FoundEntry::DIRECTORY))
+        {
+            continue;
+        }
 
         if (const auto &conf_prunenames = this_p._conf->get_prune_names();
         std::find(conf_prunenames.begin(), conf_prunenames.end(), entry.name) != conf_prunenames.end())
@@ -216,6 +235,13 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
             continue;
         }
 
+        expected<int, DirWrapper::Errno_t> fd_res = dir->get_fd();
+        if (!fd_res.has_value()) [[unlikely]]
+        {
+            return {false, ""};
+        }
+        int fd = fd_res.value();
+
         entry.dir = std::make_shared<DirWrapper>();
         entry.dir->open(entry.name, fd);
         if (!entry.dir->is_open())
@@ -223,20 +249,29 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
             if (this_p._conf->get_debug_pruning())
             {
                 fprintf(stderr,
-                        "Failed opening \"%s%s\": %s\n",
+                        "Failed opening \"%s%s\": %s (entry type: %d)\n",
                         path_plus_slash.c_str(),
                         entry.name.c_str(),
-                        std::strerror(entry.dir->get_errno()));
+                        std::strerror(entry.dir->get_errno()),
+                        entry.entry_type);
             }
 
             continue;
         }
 
-        expected<DirWrapper::DirStatPtr, DirWrapper::Errno_t> stat_res = dir->get_stat();
+        const std::string file_full_name = path_plus_slash + entry.name;
+
+        expected<DirWrapper::DirStatPtr, DirWrapper::Errno_t> stat_res = entry.dir->get_stat();
         if (!stat_res.has_value())
         {
-            if (FSHelper::filesystem_is_excluded(this_p._conf->get_prune_fs(), path_plus_slash + entry.name))
+            if (FSHelper::filesystem_is_excluded(this_p._conf->get_prune_fs(), file_full_name))
             {
+                if (this_p._conf->get_debug_pruning())
+                {
+                    fprintf(stderr,
+                            "Skipping `%s' excluded due to filesystem type\n",
+                            file_full_name.c_str());
+                }
                 continue;
             }
 
@@ -248,7 +283,7 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
         }
         DirWrapper::DirStatPtr stat = stat_res.value();
 
-        expected<DirWrapper::DirStat, DirWrapper::Errno_t> parent_stat_res = dir->get_parent_stat();
+        expected<DirWrapper::DirStatPtr, DirWrapper::Errno_t> parent_stat_res = dir->get_stat();
         if (!parent_stat_res.has_value())
         {
             fprintf(stderr,
@@ -257,12 +292,19 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
                     std::strerror(stat_res.error()));
             exit(EXIT_FAILURE);
         }
-        DirWrapper::DirStat parent_stat = parent_stat_res.value();
+        DirWrapper::DirStatPtr parent_stat = parent_stat_res.value();
 
-        if ((*stat).st_dev != parent_stat.st_dev)
+        // Run if mount point of parent and child directories are not the same.
+        if ((*stat).st_dev != (*parent_stat).st_dev)
         {
-            if (FSHelper::filesystem_is_excluded(this_p._conf->get_prune_fs(), path_plus_slash + entry.name))
+            if (FSHelper::filesystem_is_excluded(this_p._conf->get_prune_fs(), file_full_name))
             {
+                if (this_p._conf->get_debug_pruning())
+                {
+                    fprintf(stderr,
+                            "Skipping `%s' excluded due to filesystem type\n",
+                            file_full_name.c_str());
+                }
                 continue;
             }
         }

@@ -1,31 +1,22 @@
 #include "SymFinder.h"
 
 #include <format>
-#include <functional>
 #include <memory>
-#include <thread>
-#include <vector>
-#include <regex>
 
 #include "ElfParser.h"
 #include "FSScanner.h"
-#include "HWHelper.h"
-#include "StringComparator.h"
 #include "Symbol.h"
 #include "Threading.h"
-
-#if 0
-#define HARDWARE_CONCURRENCY_COUNT SymFind::get_hardware_concurrency()
-#else // Debug
-#define HARDWARE_CONCURRENCY_COUNT 1
-#endif
 
 #define MAX_MATCHED_SYMBOLS_COUNTS 10
 
 namespace SymFind
 {
 
-void worker(const FileIDList &file_ids, const FSScanner::FileList &found_files, IgnoreSymbolCallback ignore_symbol, bool verbose)
+void worker(const FileIDList &file_ids,
+            const FSScanner::FileList &found_files,
+            const IgnoreSymbolCallback &ignore_symbol,
+            bool verbose)
 {
     SymbolEntries parsed_symbol_entries;
     parsed_symbol_entries.reserve(MAX_MATCHED_SYMBOLS_COUNTS);
@@ -70,20 +61,6 @@ void worker(const FileIDList &file_ids, const FSScanner::FileList &found_files, 
 
         parsed_symbol_entries.clear();
     }
-}
-
-std::uint16_t get_proper_thread_count_to_process_list(std::size_t list_size)
-{
-    static const std::uint16_t THREADS_COUNT = HARDWARE_CONCURRENCY_COUNT;
-    static const std::uint32_t MINIMUM_FILES_PER_THREAD = 20;
-
-    auto CURRENT_FILES_PER_THREAD = static_cast<std::uint32_t>(list_size / THREADS_COUNT);
-
-    if (CURRENT_FILES_PER_THREAD >= MINIMUM_FILES_PER_THREAD)
-    {
-        return THREADS_COUNT;
-    }
-    return std::max<std::uint16_t>(1, static_cast<std::uint16_t>(list_size / MINIMUM_FILES_PER_THREAD));
 }
 
 SymFinder::SymFinder(ConfigParserPtr conf, const FSScanner &fsscanner, IgnoreSymbolCallback ignore_symbol) noexcept

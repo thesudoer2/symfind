@@ -159,6 +159,41 @@ bool FileWrapper::read(const FileWrapper &file, void *ptr, size_t len, Offset_t 
     return true;
 }
 
+bool FileWrapper::write(const FileWrapper &file, void *buf, size_t len, Offset_t offset) noexcept
+{
+    if (!file.is_open())
+    {
+        return false;
+    }
+
+    int fd = fileno(file._fp.get()); // NOLINT(readability-identifier-length)
+
+    const char *ptr = static_cast<const char *>(buf);
+    size_t remaining = len;
+
+    while (remaining > 0)
+    {
+        ssize_t nwrite = pwrite(fd, ptr, remaining, offset);
+
+        if (nwrite <= 0)
+        {
+            if (errno == EINTR)
+            {
+                file._last_errno = EINTR;
+                continue;
+            }
+            file._last_errno = errno;
+            return false;
+        }
+
+        ptr += nwrite; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        offset += nwrite;
+        remaining -= nwrite;
+    }
+
+    return true;
+}
+
 expected<std::int64_t, FileWrapper::Errno_t> FileWrapper::get_file_size(FileWrapper &file) noexcept
 {
     if (!file.is_open())

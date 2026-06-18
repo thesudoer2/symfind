@@ -190,6 +190,17 @@ void break_string(std::vector<std::string> &list, const std::string &str)
     }
 }
 
+void list_to_upper(std::vector<std::string> &list) noexcept
+{
+    for (auto &str : list)
+    {
+        for (char &ch : str)
+        {
+            ch = (char)toupper(ch);
+        }
+    }
+}
+
 std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, const std::string &value) noexcept
 {
     if (key == PRUNE_BIND_MOUNTS_CONFIG)
@@ -229,6 +240,7 @@ std::pair<bool, std::string> ConfigParser::store_config(const std::string &key, 
     else if (key == PRUNE_FS_CONFIG)
     {
         break_string(_prunefs, value);
+        list_to_upper(_prunefs);
     }
     else if (key == PRUNE_PATHS_CONFIG)
     {

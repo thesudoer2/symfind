@@ -6,12 +6,15 @@
 #include <bitset>
 #include <memory>
 #include <string>
+#include <vector>
 
-#include "Global.h"
 #include "Expected.h"
+#include "Global.h"
 
 namespace SymFind
 {
+
+using FileIDList = std::vector<std::uint32_t>;
 
 class FileWrapper final
 {
@@ -53,8 +56,8 @@ public: // NOLINT(readability-redundant-access-specifiers)
 public: // NOLINT(readability-redundant-access-specifiers)
     expected<std::int32_t, Errno_t> get_fd() const noexcept;
 
-    const FILE* get_cfp() const noexcept;
-    FILE* get_fp() noexcept;
+    const FILE *get_cfp() const noexcept;
+    FILE *get_fp() noexcept;
 
     bool open(const std::string &file_path, const std::string &mode) noexcept;
     void close() noexcept;
@@ -66,14 +69,17 @@ public: // NOLINT(readability-redundant-access-specifiers)
     __nodiscard std::string get_file_path() const noexcept;
 
 public: // NOLINT(readability-redundant-access-specifiers)
-    static expected<FileWrapper::Offset_t, FileWrapper::Errno_t> seek(FileWrapper& file, Offset_t offset,
-            int destination) noexcept;
+    static expected<FileWrapper::Offset_t, FileWrapper::Errno_t> seek(FileWrapper &file,
+                                                                      Offset_t offset,
+                                                                      int destination) noexcept;
 
-    static expected<Offset_t, Errno_t> tellp(const FileWrapper& file) noexcept;
+    static expected<Offset_t, Errno_t> tellp(const FileWrapper &file) noexcept;
 
-    static bool read(const FileWrapper& file, void *ptr, size_t len, Offset_t offset) noexcept;
+    static bool read(const FileWrapper &file, void *ptr, size_t len, Offset_t offset = 0) noexcept;
 
-    static expected<std::int64_t, Errno_t> get_file_size(FileWrapper& file) noexcept;
+    static bool write(const FileWrapper &file, void *buf, size_t len, Offset_t offset = 0) noexcept;
+
+    static expected<std::int64_t, Errno_t> get_file_size(FileWrapper &file) noexcept;
 
 private:
     FilePtr _fp{nullptr};

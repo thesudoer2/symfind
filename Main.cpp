@@ -1,13 +1,30 @@
+#include <cstdint>
 #include <format>
 #include <iostream>
 #include <regex>
 #include <string>
 
 #include "Config.h"
+#include "DatabaseBuilder.h"
 #include "FSScanner.h"
-#include "SymFinder.h"
 #include "StringComparator.h"
+#include "SymFinder.h"
 #include "Symbol.h"
+
+#define RUNNING_METHOD_BUILD_DB "build_db"
+#define RUNNING_METHOD_READ_DB "read_db"
+#define RUNNING_METHOD_FREE_RUN "free_run"
+
+#define RUNNING_METHODS RUNNING_METHOD_BUILD_DB "|" RUNNING_METHOD_READ_DB "|" RUNNING_METHOD_FREE_RUN
+
+
+#define SEARCH_TYPE_DEFAULT "default"
+#define SEARCH_TYPE_REGEX "regex"
+#define SEARCH_TYPE_FUZZY "fuzzy"
+
+#define SEARCH_TYPES SEARCH_TYPE_DEFAULT "|" SEARCH_TYPE_REGEX "|" SEARCH_TYPE_FUZZY
+
+bool use_debug = false;
 
 namespace
 {
@@ -30,13 +47,22 @@ enum class SymbolDefinitionToPrint : std::uint8_t
     SHOW_BOTH,
 };
 
+enum RunningMethod : uint8_t
+{
+    NOT_SET = 0x00,
+    BUILD_DB = 0x02,
+    READ_DB = 0x04,
+    FREE_RUN = 0x08,
+};
 
 struct ProgramOptions
 {
+    RunningMethod running_method = RunningMethod::NOT_SET;
     SymFind::StringComparatorType search_type = SymFind::StringComparatorType::DEFAULT;
     SymbolDefinitionToPrint visibility = SymbolDefinitionToPrint::ONLY_DEFINED;
     std::filesystem::path root_path = "/";
     std::string symbol;
+    bool be_verbose = false;
 };
 
 
@@ -47,22 +73,34 @@ struct ProgramOptions
 static void print_help(const char *program_name)
 {
     std::cout <<
-R"(Usage:
-    )" << program_name << R"( [options] <symbol>
+        R"(Usage:
+    )" << program_name
+              << R"( [options] <symbol>
 
 Options:
+    -r, --running-method <)"
+              << RUNNING_METHODS << R"(>
+        Choose program's running behavior.
+
+        NOTE: You can choose only one running method.
+        NOTE: Default behavior of running method is "read_db".
+
     -r, --regex
         Shortcut for: --search-type regex
 
     -f, --fuzz
         Shortcut for: --search-type fuzzy
 
-    --search-type <default|regex|fuzzy>
+    --search-type <)"
+              << SEARCH_TYPES << R"(>
         Defines how symbol matching is performed.
 
-            default -> exact string comparison (default)
-            regex   -> treat input as regex pattern
-            fuzzy   -> fuzzy matching
+            )" << SEARCH_TYPE_DEFAULT
+              << R"( -> exact string comparison (default)
+            )" << SEARCH_TYPE_REGEX
+              << R"(   -> treat input as regex pattern
+            )" << SEARCH_TYPE_FUZZY
+              << R"(   -> fuzzy matching
 
     --symbol-visibility <defined|runtime|both>
         Controls which symbols are shown:
@@ -74,20 +112,46 @@ Options:
     --root <path>
         Set root directory for symbol search.
 
+    -v, --verbose
+        Be verbose and show more logs.
+
     -h, --help
         Show this help message.
 
 Examples:
-    )" << program_name << R"( malloc
+    )" << program_name
+              << R"( malloc
 
-    )" << program_name << R"( --search-type regex "std::.*vector"
+    )" << program_name
+              << R"( --search-type regex "std::.*vector"
 
-    )" << program_name << R"( --search-type fuzzy pushbak
+    )" << program_name
+              << R"( --search-type fuzzy pushbak
 
-    )" << program_name << R"( --symbol-visibility runtime malloc
+    )" << program_name
+              << R"( --symbol-visibility runtime malloc
 
-    )" << program_name << R"( --root /usr/lib64 printf
+    )" << program_name
+              << R"( --root /usr/lib64 printf
 )";
+}
+
+RunningMethod parse_running_method(const std::string &value)
+{
+    if (value == RUNNING_METHOD_BUILD_DB)
+    {
+        return RunningMethod::BUILD_DB;
+    }
+    else if (value == RUNNING_METHOD_READ_DB)
+    {
+        return RunningMethod::READ_DB;
+    }
+    else if (value == RUNNING_METHOD_FREE_RUN)
+    {
+        return RunningMethod::FREE_RUN;
+    }
+
+    return RunningMethod::NOT_SET;
 }
 
 SymbolDefinitionToPrint parse_visibility(const std::string &value)
@@ -148,6 +212,26 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options)
             std::exit(0);
         }
 
+        // Build Database
+        if (arg == "-r" || arg == "--running-method")
+        {
+            if (options.running_method != RunningMethod::NOT_SET)
+            {
+                std::cerr << "ERROR: Multiple running methods entered!\n";
+                return false;
+            }
+
+            std::string running_method_str = argv[++i];
+            auto parsed_running_method = parse_running_method(running_method_str);
+            if ((bool)(parsed_running_method & RunningMethod::NOT_SET))
+            {
+                std::cerr << "ERROR: Invalid running method: " << running_method_str << '\n';
+                return false;
+            }
+            options.running_method = parsed_running_method;
+            continue;
+        }
+
         // Shortcut: regex
         if (arg == "-r" || arg == "--regex")
         {
@@ -172,8 +256,7 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options)
             }
 
             options.search_type = parse_search_type(argv[++i]);
-            if (options.search_type == SymFind::StringComparatorType::DEFAULT &&
-                argv[i] != std::string("default"))
+            if (options.search_type == SymFind::StringComparatorType::DEFAULT && argv[i] != std::string("default"))
             {
                 std::cerr << "ERROR: invalid --search-type value\n";
                 return false;
@@ -215,6 +298,12 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options)
             continue;
         }
 
+        // verbose
+        if (arg == "-v" || arg == "--verbose")
+        {
+            options.be_verbose = true;
+        }
+
         // positional symbol
         if (arg[0] != '-')
         {
@@ -232,11 +321,18 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options)
         return false;
     }
 
-    if (options.symbol.empty())
+    if ((bool)(options.running_method & RunningMethod::NOT_SET))
+    {
+        options.running_method = RunningMethod::READ_DB;
+    }
+
+    if (options.symbol.empty() && options.running_method != RunningMethod::BUILD_DB)
     {
         std::cerr << "ERROR: missing symbol argument\n";
         return false;
     }
+
+    use_debug = options.be_verbose;
 
     return true;
 }
@@ -302,16 +398,35 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    auto string_comparator = SymFind::make_string_comparator(options.search_type, options.symbol);
+    // Run...
 
-    auto ignore_symbol = [&string_comparator](const SymFind::SymbolEntry &sym_ent) -> bool {
-        // TODO1: Take argument to show only "DEFINED" symbols or all symbols.
-        return !symbol_should_be_stored(sym_ent,
-                                        SymbolDefinitionToPrint::ONLY_DEFINED,
-                                        *string_comparator);
-    };
+    if ((bool)(options.running_method & BUILD_DB))
+    {
+        std::string err_msg(1024, '\0');
 
-    SymFind::SymFinder symfinder(config_parser, fsscanner, ignore_symbol);
+        SymFind::DatabaseBuilder db_builder(config_parser, fsscanner);
+        bool build_res = db_builder.build(&err_msg);
+        if (!build_res)
+        {
+            std::cout << err_msg << '\n';
+            return 1;
+        }
+    }
+    else if ((bool)(options.running_method & READ_DB))
+    {
+        asm volatile("nop");
+    }
+    else if ((bool)(options.running_method & FREE_RUN))
+    {
+        auto string_comparator = SymFind::make_string_comparator(options.search_type, options.symbol);
+
+        auto ignore_symbol = [&string_comparator](const SymFind::SymbolEntry &sym_ent) -> bool {
+            // TODO1: Take argument to show only "DEFINED" symbols or all symbols.
+            return !symbol_should_be_stored(sym_ent, SymbolDefinitionToPrint::ONLY_DEFINED, *string_comparator);
+        };
+
+        SymFind::SymFinder symfinder(config_parser, fsscanner, ignore_symbol);
+    }
 
     return 0;
 }
