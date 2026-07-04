@@ -129,7 +129,7 @@ SymbolBind get_symbol_bind(std::uint8_t sym_info) noexcept
 void parse_symtable(ElfPtr elf,
                     Elf_Scn *scn,
                     GElf_Shdr &shdr,
-                    SymbolEntries &parsed_symbol_entries,
+                    const TryStoreSymbolCallback &try_store_symbol_callback,
                     SymbolSourceSection sec,
                     const SymbolShouldBeIgnoredCallback &ignore_symbol_callback) noexcept
 {
@@ -152,29 +152,34 @@ void parse_symtable(ElfPtr elf,
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-pointer-arithmetic)
         std::string sym_name = reinterpret_cast<char *>(str_data->d_buf) + sym.st_name;
 
+        if (sym_name.size() == 0)
+        {
+            continue;
+        }
+
         // TODO: Make demangle decision based on conditions like arguments.
         sym_name = demangler.demangle(sym_name);
 
         // NOLINTNEXTLINE(bugprone-unhandled-exception-at-new)
-        SymbolMetaDataPtr sym_metadata{new SymbolMetaData{
+        SymbolMetaData sym_metadata{
             .source_section = sec,
             .type = get_symbol_type(sym.st_info),
             .bind = get_symbol_bind(sym.st_info),
             .visibility = SymbolVisibility::UNKNOWN, // TODO: Set symbol visitility.
             .is_defined = is_symbol_defined(sym),
             .offset = 0, // TODO: Get symbol offset.
-        }};
+        };
 
-        SymbolEntry sym_ent{.name = std::move(sym_name), .metadata = std::move(sym_metadata)};
+        SymbolEntry sym_ent{.name = std::move(sym_name), .metadata = sym_metadata};
         if (!ignore_symbol_callback(sym_ent))
         {
-            parsed_symbol_entries.emplace_back(std::move(sym_ent));
+            try_store_symbol_callback(std::move(sym_ent));
         }
     }
 }
 
 void parse_elf(ElfPtr elf,
-               SymbolEntries &parsed_symbol_entries,
+               const TryStoreSymbolCallback &try_store_symbol_callback,
                const SymbolShouldBeIgnoredCallback &ignore_symbol_callback) noexcept
 {
     size_t shstrndx{0};
@@ -190,18 +195,18 @@ void parse_elf(ElfPtr elf,
 
         if (shdr.sh_type == SHT_SYMTAB)
         {
-            parse_symtable(elf, scn, shdr, parsed_symbol_entries, SymbolSourceSection::SYMTAB, ignore_symbol_callback);
+            parse_symtable(elf, scn, shdr, try_store_symbol_callback, SymbolSourceSection::SYMTAB, ignore_symbol_callback);
         }
         else if (shdr.sh_type == SHT_DYNSYM)
         {
-            parse_symtable(elf, scn, shdr, parsed_symbol_entries, SymbolSourceSection::DYNSYM, ignore_symbol_callback);
+            parse_symtable(elf, scn, shdr, try_store_symbol_callback, SymbolSourceSection::DYNSYM, ignore_symbol_callback);
         }
     }
 }
 
 void parse_archive(int fd,
                    ElfPtr archive,
-                   SymbolEntries &parsed_symbol_entries,
+                   const TryStoreSymbolCallback &try_store_symbol_callback,
                    const SymbolShouldBeIgnoredCallback &ignore_symbol_callback) noexcept
 {
     Elf_Arhdr *arh = nullptr;
@@ -216,7 +221,7 @@ void parse_archive(int fd,
 
         if (elf_kind(member.get()) == ELF_K_ELF)
         {
-            parse_elf(member, parsed_symbol_entries, ignore_symbol_callback);
+            parse_elf(member, try_store_symbol_callback, ignore_symbol_callback);
         }
 
         (void)elf_next(member.get());
@@ -224,7 +229,7 @@ void parse_archive(int fd,
 }
 
 bool parse_symtables(const std::string &file,
-                     SymbolEntries &parsed_symbol_entries,
+                     const TryStoreSymbolCallback &try_store_symbol_callback,
                      const SymbolShouldBeIgnoredCallback &ignore_symbol_callback,
                      std::string *err_msg) noexcept
 {
@@ -270,11 +275,11 @@ bool parse_symtables(const std::string &file,
 
     if (kind == ELF_K_ELF)
     {
-        parse_elf(elf, parsed_symbol_entries, ignore_symbol_callback);
+        parse_elf(elf, try_store_symbol_callback, ignore_symbol_callback);
     }
     else if (kind == ELF_K_AR)
     {
-        parse_archive(fd, elf, parsed_symbol_entries, ignore_symbol_callback);
+        parse_archive(fd, elf, try_store_symbol_callback, ignore_symbol_callback);
     }
     else
     {

@@ -1,11 +1,10 @@
 #include <cstdint>
-#include <format>
 #include <iostream>
-#include <regex>
 #include <string>
 
 #include "Config.h"
 #include "DatabaseBuilder.h"
+#include "DictionaryBuilder.h"
 #include "FSScanner.h"
 #include "StringComparator.h"
 #include "SymFinder.h"
@@ -344,13 +343,13 @@ bool symbol_should_be_stored(const SymFind::SymbolEntry &sym_ent,
     if (compare_sym_names(sym_ent.name))
     {
         const auto &sym_metadata = sym_ent.metadata;
-        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
+        if (sym_metadata.is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
                                          def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
         {
             return true;
         }
 
-        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
+        if (sym_metadata.is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
                                          def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
         {
             return true;
@@ -387,8 +386,10 @@ int main(int argc, char **argv)
     // Initialize bind-mount
     SymFind::BindMount::init(config_parser);
 
+    SymFind::DictionaryBuilderPtr dict_builder(new SymFind::DictionaryBuilder);
+
     // Create FSScanner
-    SymFind::FSScanner fsscanner(config_parser, SymFind::BindMount::getInstancePtr());
+    SymFind::FSScanner fsscanner(config_parser, SymFind::BindMount::getInstancePtr(), dict_builder);
 
     bool scan_res = false;
     std::tie(scan_res, err_msg) = fsscanner.scan();
@@ -404,7 +405,7 @@ int main(int argc, char **argv)
     {
         std::string err_msg(1024, '\0');
 
-        SymFind::DatabaseBuilder db_builder(config_parser, fsscanner);
+        SymFind::DatabaseBuilder db_builder(config_parser, fsscanner, dict_builder);
         bool build_res = db_builder.build(&err_msg);
         if (!build_res)
         {

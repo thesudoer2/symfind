@@ -11,7 +11,7 @@
 #include <poll.h>
 
 #include "Config.h"
-#include "FSHelper.h"
+#include "FSUtils.h"
 #include "FileWrapper.h"
 
 namespace SymFind

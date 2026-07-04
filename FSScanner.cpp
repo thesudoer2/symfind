@@ -14,16 +14,19 @@
 
 #include "BindMount.h"
 #include "Config.h"
+#include "DictionaryBuilder.h"
 #include "Expected.h"
-#include "FSHelper.h"
+#include "FSUtils.h"
 #include "DirWrapper.h"
 
 #define FOUND_FILES_RESERVED_SIZE 40'000
 
+#define MAX_FILE_NAME_SAMPLES 100'000
+#define MAX_PATH_NAME_SAMPLES 100'000
+
 #define SHARED_LIBRARY_EXTENSION ".so"
 #define STATIC_LIBRARY_EXTENSION ".a"
 #define OBJECT_FILE_EXTENSION ".o"
-
 namespace
 {
 
@@ -101,8 +104,10 @@ struct FoundEntry
 
 FSScanner::StringCache FSScanner::_found_files_paths_cache{};
 
-FSScanner::FSScanner(ConfigParserPtr conf, BindMount::InstancePtr bind_mount) noexcept
-    : _conf(std::move(conf)), _bind_mount(std::move(bind_mount))
+FSScanner::FSScanner(ConfigParserPtr conf,
+                     BindMount::InstancePtr bind_mount,
+                     DictionaryBuilderPtr dict_builder_ptr) noexcept
+    : _conf(std::move(conf)), _bind_mount(std::move(bind_mount)), _dict_builder_ptr(std::move(dict_builder_ptr))
 {
     _found_files.reserve(FOUND_FILES_RESERVED_SIZE);
 }
@@ -214,8 +219,14 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
         {
             if (FSHelper::filename_has_any_of_extensions(entry.name, tracking_extensions))
             {
+                // Add file name sample to dictionary if exists.
+                if (this_p._dict_builder_ptr && ++this_p.file_name_samples <= MAX_FILE_NAME_SAMPLES)
+                {
+                    this_p._dict_builder_ptr->add_sample(entry.name);
+                }
+
                 StringCache::StringID id = _found_files_paths_cache.store_string(path_plus_slash);
-                this_p._found_files.emplace_back(FileInfo{entry.name, id});
+                this_p._found_files.emplace_back(entry.name, id);
             }
             continue;
         }
@@ -311,6 +322,12 @@ std::pair<bool, std::string> FSScanner::scan_fs(FSScanner &this_p, std::shared_p
 
         if ((bool)(entry.entry_type & FoundEntry::DIRECTORY) && fd != -1)
         {
+            // Add path name sample to dictionary if exists.
+            if (this_p._dict_builder_ptr && ++this_p.path_name_samples <= MAX_PATH_NAME_SAMPLES)
+            {
+                this_p._dict_builder_ptr->add_sample(entry.name);
+            }
+
             auto [stat, message] = scan_fs(this_p, entry.dir);
             if (!stat)
             {

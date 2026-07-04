@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+########################################
+# Defaults
+########################################
+
+BUILD_TYPE="Release"
+DO_CLEAR=0
+
+COLOR_BOLD="\033[1m"
+COLOR_ITALIC="\033[3m"
+COLOR_NORMAL="\033[0;0m"
+COLOR_RED="\033[31m"
+
+########################################
+# Functions
+########################################
+
+show_help()
+{
+    cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+  -h, --help
+      Show this help message and exit.
+
+  -c, --clear
+      Delete build directory for the selected build type and exit.
+
+  -b, --build_type=TYPE
+      Build type to use.
+
+      Valid values:
+          release
+          debug
+          relwithdebinfo
+
+Examples:
+  $0
+  $0 -b debug
+  $0 --build_type=relwithdebinfo
+  $0 -c -b release
+EOF
+}
+
+########################################
+# Parse arguments
+########################################
+
+while [[ $# -gt 0 ]]
+do
+    case "$1" in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+
+        -c|--clear)
+            DO_CLEAR=1
+            shift
+            ;;
+
+        -b)
+            [[ $# -lt 2 ]] && {
+                echo "Missing argument for -b" >&2
+                exit 1
+            }
+
+            case "${2,,}" in
+                release)
+                    BUILD_TYPE="Release"
+                    ;;
+                debug)
+                    BUILD_TYPE="Debug"
+                    ;;
+                relwithdebinfo)
+                    BUILD_TYPE="RelWithDebInfo"
+                    ;;
+                *)
+                    echo "Invalid build type: $2" >&2
+                    exit 1
+                    ;;
+            esac
+
+            shift 2
+            ;;
+
+        --build_type=*)
+            value="${1#*=}"
+
+            case "${value,,}" in
+                release)
+                    BUILD_TYPE="Release"
+                    ;;
+                debug)
+                    BUILD_TYPE="Debug"
+                    ;;
+                relwithdebinfo)
+                    BUILD_TYPE="RelWithDebInfo"
+                    ;;
+                *)
+                    echo "Invalid build type: $value" >&2
+                    exit 1
+                    ;;
+            esac
+
+            shift
+            ;;
+
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Use --help for usage." >&2
+            exit 1
+            ;;
+    esac
+done
+
+########################################
+# Build directory depends on build type
+########################################
+
+BUILD_DIR="build_${BUILD_TYPE}"
+
+########################################
+# Clear build directory if requested
+########################################
+
+if [[ $DO_CLEAR -eq 1 ]]
+then
+    rm -rf "$BUILD_DIR"
+    echo "Removed: $BUILD_DIR"
+    exit 0
+fi
+
+########################################
+# Tool checks
+########################################
+
+MAKE_CMD="$(command -v make || true)"
+if [[ -z "$MAKE_CMD" ]]
+then
+    printf "Please install 'make' command\n" >&2
+    exit 1
+fi
+
+CXX_COMPILER="$(command -v g++ || true)"
+if [[ -z "$CXX_COMPILER" ]]
+then
+    printf "Please install 'g++' command\n" >&2
+    exit 1
+fi
+
+########################################
+# Build
+########################################
+
+conan install . \
+    -s:h compiler.cppstd=20 \
+    -s:h build_type="${BUILD_TYPE}" \
+    -s:b compiler.cppstd=20 \
+    -s:b build_type="${BUILD_TYPE}" \
+    -o "*:shared=False" \
+    --output-folder="$BUILD_DIR" \
+    --build=missing \
+    -vstatus || { printf "\n${COLOR_BOLD}${COLOR_ITALIC}${COLOR_RED}\`conan install' command failed!${COLOR_NORMAL}\n"; }
+
+echo "================================================================================"
+
+cmake -B "$BUILD_DIR" -S . \
+    -DCMAKE_TOOLCHAIN_FILE="$BUILD_DIR/conan_toolchain.cmake" \
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    -DCMAKE_MAKE_PROGRAM="$MAKE_CMD" \
+    -DCMAKE_CXX_COMPILER="$CXX_COMPILER" \
+    -G "Unix Makefiles"
+
+echo "================================================================================"
+
+cmake --build "$BUILD_DIR" \
+    --config "$BUILD_TYPE" \
+    -j"$(nproc)"

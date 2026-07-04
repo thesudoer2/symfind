@@ -1,32 +1,42 @@
 #pragma once
 
-#include <cstdint>
 #include <memory>
+
+#include <cstdint>
+
+#include <ankerl/unordered_dense.h>
+
+#include <robin_hood.h>
 
 #include "BindMount.h"
 #include "Config.h"
+#include "DictionaryBuilder.h"
 #include "DirWrapper.h"
-#include "FileWrapper.h"
 
 // NOLINTBEGIN(readability-identifier-length)
 
 namespace SymFind
 {
 
+class DatabaseBuilder;
+
 class FSScanner final
 {
-private:
+    friend DatabaseBuilder;
+
+public:
     struct StringCache final
     {
+        friend DatabaseBuilder;
+
     public:
         using StringID = std::uint32_t;
         using String = std::string;
 
-    private:
-        using StringMap = std::unordered_map<String, StringID>;
+        using StringMap = ankerl::unordered_dense::map<String, StringID, robin_hood::hash<String>>;
         using StringList = std::vector<String>;
 
-    public:
+    public: // NOLINT
         StringCache() noexcept = default;
         ~StringCache() noexcept = default;
 
@@ -44,7 +54,6 @@ private:
         StringList _id_to_str;
     };
 
-public:
     struct FileInfo
     {
         std::string name;
@@ -54,7 +63,9 @@ public:
     using FileList = std::vector<FileInfo>;
 
 public: // NOLINT(readability-redundant-access-specifiers)
-    explicit FSScanner(ConfigParserPtr conf, BindMount::InstancePtr bind_mount) noexcept;
+    explicit FSScanner(ConfigParserPtr conf,
+                       BindMount::InstancePtr bind_mount,
+                       DictionaryBuilderPtr dict_builder_ptr) noexcept;
 
 public: // NOLINT(readability-redundant-access-specifiers)
     std::pair<bool, std::string> scan() noexcept;
@@ -74,6 +85,10 @@ private: // NOLINT(readability-redundant-access-specifiers)
     BindMount::InstancePtr _bind_mount;
 
     FileList _found_files;
+
+    DictionaryBuilderPtr _dict_builder_ptr;
+    std::uint32_t file_name_samples{};
+    std::uint32_t path_name_samples{};
 };
 
 } // namespace SymFind

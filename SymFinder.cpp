@@ -21,13 +21,17 @@ void worker(const FileIDList &file_ids,
     SymbolEntries parsed_symbol_entries;
     parsed_symbol_entries.reserve(MAX_MATCHED_SYMBOLS_COUNTS);
 
+    TryStoreSymbolCallback try_store_symbol_callback = [&parsed_symbol_entries](SymbolEntry &&syment) -> void {
+        parsed_symbol_entries.emplace_back(std::move(syment));
+    };
+
     for (auto file_id : file_ids)
     {
         const FSScanner::FileInfo &file_info = found_files[file_id];
         std::string file_path = FSScanner::get_file_info_full_path(file_info);
 
         std::string err_msg;
-        if (!parse_symtables(file_path, parsed_symbol_entries, ignore_symbol, &err_msg))
+        if (!parse_symtables(file_path, try_store_symbol_callback, ignore_symbol, &err_msg))
         {
             if (verbose)
             {
@@ -41,12 +45,12 @@ void worker(const FileIDList &file_ids,
         for (auto &sym : parsed_symbol_entries)
         {
             // TODO: Take argument to show only "DEFINED" symbols or all symbols.
-            // if (sym.name == target_sym_name && sym.metadata->is_defined)
+            // if (sym.name == target_sym_name && sym.metadata.is_defined)
             {
-                std::string sym_bind = SymFind::symbol_bind_to_str(sym.metadata->bind);
-                std::string sym_type = SymFind::symbol_type_to_str(sym.metadata->type);
-                std::string sym_is_defined = sym.metadata->is_defined ? "DEFINED" : "RUNTIME";
-                std::string sym_src_sec = SymFind::symbol_source_section_to_str(sym.metadata->source_section);
+                std::string sym_bind = SymFind::symbol_bind_to_str(sym.metadata.bind);
+                std::string sym_type = SymFind::symbol_type_to_str(sym.metadata.type);
+                std::string sym_is_defined = sym.metadata.is_defined ? "DEFINED" : "RUNTIME";
+                std::string sym_src_sec = SymFind::symbol_source_section_to_str(sym.metadata.source_section);
 
                 std::cout << file_path << ":\n";
                 std::cout << std::format(

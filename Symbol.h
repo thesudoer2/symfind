@@ -53,24 +53,21 @@ struct SymbolMetaData
 };
 
 using SymbolName = std::string;
-using SymbolMetaDataPtr = std::unique_ptr<SymbolMetaData>;
 
 struct SymbolEntry
 {
     SymbolName name;
-    SymbolMetaDataPtr metadata;
+    SymbolMetaData metadata;
 };
 
 struct SymbolRef
 {
-    std::uint32_t file_id; // reference to FSScanner::found_files entry
-    SymbolMetaDataPtr metadata;
+    std::uint32_t file_id{0}; // reference to FSScanner::found_files entry
+    SymbolMetaData metadata;
 };
 
 using SymbolRefs = std::vector<SymbolRef>;
-using SymbolRefsPtr = SymbolRefs*;
 using SymbolEntries = std::vector<SymbolEntry>;
-
 
 std::string symbol_source_section_to_str(SymbolSourceSection sym_sec) noexcept;
 std::string symbol_type_to_str(SymbolType sym_type) noexcept;

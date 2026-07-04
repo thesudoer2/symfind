@@ -21,13 +21,8 @@
 #endif
 #endif
 
-// Debug printf.
-extern bool use_debug;
-#define dprintf(...)                                                                                                   \
-    do                                                                                                                 \
+#define SET_ERR_MSG(err_msg_buf, err_msg)                                                                              \
     {                                                                                                                  \
-        if (use_debug)                                                                                                 \
-        {                                                                                                              \
-            fprintf(stderr, __VA_ARGS__);                                                                              \
-        }                                                                                                              \
-    } while (false)
+        if ((err_msg_buf) != nullptr)                                                                                  \
+            *(err_msg_buf) = err_msg;                                                                                  \
+    }

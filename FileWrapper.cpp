@@ -159,7 +159,7 @@ bool FileWrapper::read(const FileWrapper &file, void *ptr, size_t len, Offset_t 
     return true;
 }
 
-bool FileWrapper::write(const FileWrapper &file, void *buf, size_t len, Offset_t offset) noexcept
+bool FileWrapper::write(const FileWrapper &file, const void *buf, size_t len, Offset_t offset) noexcept
 {
     if (!file.is_open())
     {

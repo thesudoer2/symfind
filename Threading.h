@@ -5,7 +5,7 @@
 
 #include <sys/cdefs.h>
 
-#include "HWHelper.h"
+#include "HWUtils.h"
 
 #if 1
 #define HARDWARE_CONCURRENCY_COUNT SymFind::get_hardware_concurrency()

@@ -7,10 +7,10 @@ CXXFLAGS := -O3 -g0 -std=c++20 -Werror -Wall # Release
 # LDFLAGS  := -Wl,-O0 # Debug
 LDFLAGS  := -Wl,-O3 # Release
 
-# LDLIBS   := -lelf -lre2 -ltbb # Without tcmalloc
-LDLIBS   := -lelf -lre2 -ltbb -ltcmalloc # With tcmalloc
-# LDLIBS   := -lelf -lre2 -ltbb -ltcmalloc_minimal # With tcmalloc_minimal
-# LDLIBS   := -lelf -lre2 -ltbb -ljemalloc # With jemalloc
+# LDLIBS   := -lelf -lre2 # Without tcmalloc
+LDLIBS   := -lelf -lre2 -ltcmalloc # With tcmalloc
+# LDLIBS   := -lelf -lre2 -ltcmalloc_minimal # With tcmalloc_minimal
+# LDLIBS   := -lelf -lre2 -ljemalloc # With jemalloc
 
 TARGET := symfind
 

@@ -14,7 +14,8 @@
 namespace SymFind
 {
 
-using FileIDList = std::vector<std::uint32_t>;
+using FileID = std::uint32_t;
+using FileIDList = std::vector<FileID>;
 
 class FileWrapper final
 {
@@ -75,9 +76,9 @@ public: // NOLINT(readability-redundant-access-specifiers)
 
     static expected<Offset_t, Errno_t> tellp(const FileWrapper &file) noexcept;
 
-    static bool read(const FileWrapper &file, void *ptr, size_t len, Offset_t offset = 0) noexcept;
+    static bool read(const FileWrapper &file, void *ptr, size_t len, Offset_t offset) noexcept;
 
-    static bool write(const FileWrapper &file, void *buf, size_t len, Offset_t offset = 0) noexcept;
+    static bool write(const FileWrapper &file, const void *buf, size_t len, Offset_t offset) noexcept;
 
     static expected<std::int64_t, Errno_t> get_file_size(FileWrapper &file) noexcept;
 
