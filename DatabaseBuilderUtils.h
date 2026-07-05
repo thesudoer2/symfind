@@ -68,7 +68,7 @@ static void append_object(ByteArray &out, const T &obj)
 }
 
 std::optional<Database::FileTableHeader> write_file_table(Database &db,
-                                                          FileWrapper::Offset_t write_offset,
+                                                          FileWrapper::Offset_t &write_offset,
                                                           const FSScanner &fsscanner,
                                                           ZSTDCompressor &zstd_compressor,
                                                           CompressionOptions &comp_opts,
@@ -269,7 +269,7 @@ std::optional<Database::SymbolIndexHeader> write_symbol_index(Database &db,
 
         // Advance symbol name and metadata offset
         sym_name_offset += sym_name_length;
-        sym_metadata_offset = sym_metadata_length;
+        sym_metadata_offset += sym_metadata_length;
 
         // Append symbol name
         sym_names_blob += sym_name;
@@ -375,12 +375,12 @@ std::optional<Database::TrigramIndexHeader> write_trigram_index(Database &db,
     Database::TrigramIndexHeader tg_hdr{};
 
     TrigramBuilder tg_builder;
-    std::uint32_t symbols_count{0};
 
     // Append symbols to trigram
+    std::uint32_t symbol_id{0};
     for (const auto &[sym_name, sym_refs] : symtable)
     {
-        tg_builder.add_word(sym_name, symbols_count);
+        tg_builder.add_word(sym_name, symbol_id++);
     }
 
     const auto &trigram_to_symbols = tg_builder.get_trigram_to_symbols();

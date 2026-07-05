@@ -124,12 +124,12 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
     if (!db)
     {
         SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));
+        return false;
     }
 
     ZSTDCompressor zstd_compressor;
 
     CompressionOptions with_dict{.cdict = nullptr};
-    CompressionOptions without_dict{.cdict = nullptr};
 
     FileWrapper::Offset_t ftell{0};
 
