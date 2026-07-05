@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <iostream>
+#include <future>
 
 #include <cstdint>
 
@@ -119,21 +120,16 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
                                const std::string &db_path,
                                std::string *err_msg) noexcept
 {
-    Database db(db_path); // NOLINT
-
+    Database db(db_path);
     if (!db)
     {
         SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));
-        return false;
+        return false;  // FIXED: original fell through with an invalid db
     }
 
-    ZSTDCompressor zstd_compressor;
-
     CompressionOptions with_dict{.cdict = nullptr};
-
     FileWrapper::Offset_t ftell{0};
 
-    // Write header placeholder (not actual header)
     Database::DatabaseHeader db_hdr;
     if (!Database::write_database_buffer(db, &db_hdr, sizeof(Database::DatabaseHeader), ftell))
     {
@@ -146,7 +142,6 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
         dict_builder->train(dictionary);
         with_dict.cdict = DictionaryBuilder::create_compression_dictionary(dictionary.data(), dictionary.size());
 
-        // Write ZSTD dictionary
         db_hdr.zstd_dictionary_offset = ftell;
         db_hdr.zstd_dictionary_length = dictionary.length();
 
@@ -156,55 +151,81 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
         }
     }
 
-    // Write conf block
     const std::string &conf_block_data = conf->get_conf_block();
     if (!Database::write_database_buffer(db, conf_block_data.data(), conf_block_data.size(), ftell))
     {
         return false;
     }
 
-    // Write file table
-    std::optional<Database::FileTableHeader> ft_hdr =
-        write_file_table(db, ftell, fsscanner, zstd_compressor, with_dict, err_msg);
-    if (!ft_hdr.has_value())
-    {
-        return false;
-    }
-    db_hdr.file_table_hdr = ft_hdr.value();
+    // ---- Parallel build phase ----
 
-    // Write path id list
+    // std::async/std::thread live in libstdc++ + pthread, both of which are
+    // completely normal to fully-static-link -- unlike TBB, which expects to
+    // be a shared library and doesn't reliably support static linkage.
     const auto &path_list = FSScanner::_found_files_paths_cache._id_to_str;
-    std::optional<Database::PathTableHeader> pt_hdr =
-        write_path_table(db, ftell, path_list, zstd_compressor, with_dict, err_msg);
-    if (!pt_hdr.has_value())
+
+    std::string file_table_err, path_table_err, sym_index_err, trigram_err;
+
+    auto file_table_fut =
+        std::async(std::launch::async, [&] { return build_file_table(fsscanner, with_dict, &file_table_err); });
+    auto path_table_fut =
+        std::async(std::launch::async, [&] { return build_path_table(path_list, with_dict, &path_table_err); });
+    auto sym_index_fut =
+        std::async(std::launch::async, [&] { return build_symbol_index(symtable, with_dict, &sym_index_err); });
+    auto trigram_fut = std::async(std::launch::async, [&] { return build_trigram_index(symtable, &trigram_err); });
+
+    // .get() blocks until each is done -- equivalent to parallel_invoke's join,
+    // and (unlike capturing outer variables by reference from each thread)
+    // each result only becomes visible to this thread via the future's
+    // happens-before edge, so there's no question about synchronization.
+    auto file_table_built = file_table_fut.get();
+    auto path_table_built = path_table_fut.get();
+    auto sym_index_built = sym_index_fut.get();
+    auto trigram_built = trigram_fut.get();
+
+    if (!file_table_built)
     {
+        SET_ERR_MSG(err_msg, file_table_err);
         return false;
     }
-    db_hdr.path_table_hdr = pt_hdr.value();
-
-    // Write symbol index
-    std::optional<Database::SymbolIndexHeader> si_hdr =
-        write_symbol_index(db, ftell, symtable, zstd_compressor, with_dict, err_msg);
-    if (!si_hdr.has_value())
+    if (!path_table_built)
     {
+        SET_ERR_MSG(err_msg, path_table_err);
         return false;
     }
-    db_hdr.sym_index_hdr = si_hdr.value();
-
-    // Write trigram index
-    std::optional<Database::TrigramIndexHeader> tg_hdr =
-        write_trigram_index(db, ftell, symtable, zstd_compressor, err_msg);
-    if (!tg_hdr.has_value())
+    if (!sym_index_built)
     {
+        SET_ERR_MSG(err_msg, sym_index_err);
         return false;
     }
-    db_hdr.trigram_index_hdr = tg_hdr.value();
+    if (!trigram_built)
+    {
+        SET_ERR_MSG(err_msg, trigram_err);
+        return false;
+    }
 
-    // Rewind to header and update it (rewrite it)
+    // ---- Sequential commit phase ----
+    // Fixed order matching the original layout; `ftell` is only touched here.
+    auto ft_hdr = commit_file_table(db, ftell, *file_table_built, err_msg);
+    if (!ft_hdr) return false;
+    db_hdr.file_table_hdr = *ft_hdr;
+
+    auto pt_hdr = commit_path_table(db, ftell, *path_table_built, err_msg);
+    if (!pt_hdr) return false;
+    db_hdr.path_table_hdr = *pt_hdr;
+
+    auto si_hdr = commit_symbol_index(db, ftell, *sym_index_built, err_msg);
+    if (!si_hdr) return false;
+    db_hdr.sym_index_hdr = *si_hdr;
+
+    auto tg_hdr = commit_trigram_index(db, ftell, *trigram_built, err_msg);
+    if (!tg_hdr) return false;
+    db_hdr.trigram_index_hdr = *tg_hdr;
+
     ftell = 0;
     if (!Database::write_database_buffer(db, &db_hdr, sizeof(Database::DatabaseHeader), ftell))
     {
-        return false; // NOLINT
+        return false;
     }
 
     return true;

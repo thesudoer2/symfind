@@ -33,7 +33,7 @@ public:
     bool compress(void *input,
                   std::uint32_t input_size,
                   std::string &output,
-                  CompressionOptions &comp_opts,
+                  const CompressionOptions &comp_opts,
                   std::string *err_msg = nullptr) const noexcept;
 
     bool decompress(void *input,

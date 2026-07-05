@@ -50,7 +50,7 @@ ZSTDCompressor::ZSTDCompressor(std::string *err_msg) noexcept : _cctx(ZSTD_creat
 bool ZSTDCompressor::compress(void *input,
                               std::uint32_t input_size,
                               std::string &output,
-                              CompressionOptions &comp_opts,
+                              const CompressionOptions &comp_opts,
                               std::string *err_msg) const noexcept
 {
     // Resize output buffer with max compressed output size
