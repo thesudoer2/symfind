@@ -5,12 +5,15 @@
 #include "Config.h"
 #include "Database.h"
 #include "MemoryMapFile.h"
+#include "Symbol.h"
 #include "TrigramUtils.h"
 #include "ZSTDCompressor.h"
 #include "ZSTDDictionary.h"
 
 namespace SymFind
 {
+
+using IgnoreEntryCallback = std::function<bool(const SymFind::SymbolEntryView &)>;
 
 class DatabaseReader final
 {
@@ -32,6 +35,7 @@ public:
 public: // NOLINT
     static std::optional<SymbolLookupResultList> find_symbol_references(ConfigParserPtr conf,
                                                                         const std::string &symbol_name,
+                                                                        const IgnoreEntryCallback &ignore_entry,
                                                                         std::string *err_msg = nullptr) noexcept;
 
     static void print_symbol_lookup_results(const SymbolLookupResultList &results) noexcept;

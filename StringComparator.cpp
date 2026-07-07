@@ -1,10 +1,7 @@
 #include "StringComparator.h"
 
-#include <memory>
 #include <regex>
-#include <string>
-
-#include <iostream>
+#include <string_view>
 
 #include <re2/re2.h>
 
@@ -48,7 +45,7 @@ DefaultStringComparator::DefaultStringComparator(const std::string &fixed_str) n
 {
 }
 
-bool DefaultStringComparator::operator()(const std::string &str_to_compare) const noexcept
+bool DefaultStringComparator::operator()(const std::string_view &str_to_compare) const noexcept
 {
     return _fixed_str == str_to_compare;
 }
@@ -62,9 +59,11 @@ StdRegexStringComparator::StdRegexStringComparator(const std::string &fixed_str)
 {
 }
 
-bool StdRegexStringComparator::operator()(const std::string &str_to_compare) const noexcept
+bool StdRegexStringComparator::operator()(const std::string_view &/* str_to_compare */) const noexcept
 {
-    return std::regex_search(str_to_compare, _regexp);
+    // TODO: Uncomment this when `std::string_view` supported in `std::regex_search`!
+    // return std::regex_search(str_to_compare, _regexp);
+    return true;
 }
 
 // -----------------------------------------------------------------------------
@@ -76,7 +75,7 @@ Re2RegexStringComparator::Re2RegexStringComparator(const std::string &fixed_str)
 {
 }
 
-bool Re2RegexStringComparator::operator()(const std::string &str_to_compare) const noexcept
+bool Re2RegexStringComparator::operator()(const std::string_view &str_to_compare) const noexcept
 {
     return RE2::PartialMatch(str_to_compare, _regexp);
 }
@@ -90,7 +89,7 @@ FuzzyStringComparator::FuzzyStringComparator(const std::string &fixed_str, doubl
 {
 }
 
-bool FuzzyStringComparator::operator()(const std::string &str_to_compare) const noexcept
+bool FuzzyStringComparator::operator()(const std::string_view &str_to_compare) const noexcept
 {
     return _scorer.similarity(str_to_compare) >= _threshold;
 }

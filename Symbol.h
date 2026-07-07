@@ -1,10 +1,10 @@
 #pragma once
 
-#include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include <cinttypes>
+#include <cstdint>
 
 #include "Global.h"
 
@@ -55,11 +55,18 @@ SYMFIND_PACK(struct SymbolMetaData
 });
 
 using SymbolName = std::string;
+using SymbolNameView = std::string_view;
 
 struct SymbolEntry
 {
     SymbolName name;
     SymbolMetaData metadata;
+};
+
+struct SymbolEntryView
+{
+    SymbolNameView name;
+    const SymbolMetaData* metadata;
 };
 
 using SymbolEntries = std::vector<SymbolEntry>;

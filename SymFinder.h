@@ -8,7 +8,6 @@
 #include "Global.h"
 #include "NoCopy.h"
 #include "NoMove.h"
-#include "StringComparator.h"
 #include "Symbol.h"
 #include "Threading.h"
 

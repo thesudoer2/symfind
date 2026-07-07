@@ -9,6 +9,7 @@
 #include "Config.h"
 #include "Database.h"
 #include "Global.h"
+#include "Symbol.h"
 #include "TrigramUtils.h"
 #include "ZSTDCompressor.h"
 
@@ -255,6 +256,7 @@ bool DatabaseReader::decompress_database(std::string *err_msg) noexcept
 std::optional<DatabaseReader::SymbolLookupResultList> DatabaseReader::find_symbol_references(
     ConfigParserPtr conf, // NOLINT
     const std::string &symbol_name,
+    const IgnoreEntryCallback &ignore_entry,
     std::string *err_msg) noexcept
 {
     DatabaseReader db_rdr(conf);
@@ -326,10 +328,11 @@ std::optional<DatabaseReader::SymbolLookupResultList> DatabaseReader::find_symbo
 
         std::string_view name(db_rdr._symbol_names_buf.data() + entry.name_offset, entry.name_length); // NOLINT
 
-        if (name != symbol_name)
-        {
-            continue; // reject trigram-set collisions
-        }
+        // reject trigram-set collisions
+        // if (name != symbol_name)
+        // {
+        //     continue;
+        // }
 
         SymbolLookupResult result;
         result.symbol_name = std::string(name);
@@ -342,6 +345,13 @@ std::optional<DatabaseReader::SymbolLookupResultList> DatabaseReader::find_symbo
         {
             const SymbolRef& ref = refs[i]; // NOLINT
             if (ref.file_id >= db_rdr._files_count)
+            {
+                continue;
+            }
+
+            // Symbol store filter
+            if (const SymbolMetaData &metadata = ref.metadata;
+                ignore_entry(SymbolEntryView{.name = name, .metadata = &metadata}))
             {
                 continue;
             }
