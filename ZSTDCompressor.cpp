@@ -79,11 +79,11 @@ bool ZSTDCompressor::compress(void *input,
     return true;
 }
 
-bool ZSTDCompressor::decompress(void *input,
+bool ZSTDCompressor::decompress(const void *input,
                                 std::uint32_t input_size,
                                 std::size_t uncompressed_size,
                                 std::string &output,
-                                DecompressionOptions &decomp_opts,
+                                const DecompressionOptions &decomp_opts,
                                 std::string *err_msg) const noexcept
 {
     output.resize(uncompressed_size);

@@ -1,8 +1,8 @@
 #include "DatabaseBuilder.h"
 
 #include <cstddef>
-#include <iostream>
 #include <future>
+#include <iostream>
 
 #include <cstdint>
 
@@ -11,13 +11,13 @@
 #include "Config.h"
 #include "Database.h"
 #include "DatabaseBuilderUtils.h"
+#include "DatabaseWriter.h"
 #include "DictionaryBuilder.h"
-#include "ZSTDCompressor.h"
 #include "ElfParser.h"
 #include "FSScanner.h"
 #include "FileWrapper.h"
-#include "Threading.h"
 #include "Global.h"
+#include "Threading.h"
 #include "ZSTDDictionary.h"
 
 #define MAX_SYMBOLS_COUNT_IN_ELF_FILE 60'000
@@ -63,7 +63,7 @@ void worker(const FileIDList &file_ids, const FSScanner::FileList &found_files, 
 }
 
 // TODO: This function has lots of duplication with SymFinder::launch_threads function. Separate file-id distribution logic and use in both.
-void DatabaseBuilder::launch_threads(WorkerType worker,
+void DatabaseBuilder::launch_threads(WorkerType worker, // NOLINT
                                      const FSScanner &fsscanner,
                                      HashMapList &symtables,
                                      std::uint16_t thread_count,
@@ -103,36 +103,45 @@ void DatabaseBuilder::launch_threads(WorkerType worker,
         }
 
         // TODO: Use a better parameter or config to determine verbosity!
-        thread_list.emplace_back(Thread(worker,
-                                        std::move(file_ids),
-                                        std::ref(found_files),
-                                        std::ref(symtables[i]),
-                                        show_debug_messages));
+        thread_list.emplace_back(
+            Thread(worker, std::move(file_ids), std::ref(found_files), std::ref(symtables[i]), show_debug_messages));
 
         begin_index = end_index;
     }
 }
 
 bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
-                               ConfigParserPtr conf,
+                               ConfigParserPtr conf, // NOLINT
                                const HashMap &symtable,
-                               DictionaryBuilderPtr dict_builder,
+                               DictionaryBuilderPtr dict_builder, // NOLINT
                                const std::string &db_path,
                                std::string *err_msg) noexcept
 {
-    Database db(db_path);
+    DatabaseWriter db(db_path); // NOLINT
     if (!db)
     {
         SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));
-        return false;  // FIXED: original fell through with an invalid db
+        return false;
     }
 
     CompressionOptions with_dict{.cdict = nullptr};
     FileWrapper::Offset_t ftell{0};
 
     Database::DatabaseHeader db_hdr;
-    if (!Database::write_database_buffer(db, &db_hdr, sizeof(Database::DatabaseHeader), ftell))
+    db_hdr.magic = DATABASE_HEADER_MAGIC;
+    db_hdr.version = DATABASE_HEADER_VERSION;
+    if (!DatabaseWriter::write_database_buffer(db, &db_hdr, sizeof(Database::DatabaseHeader), ftell))
     {
+        SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));
+        return false;
+    }
+
+    const std::string &conf_block_data = conf->get_conf_block();
+    db_hdr.conf_block_offset = ftell;
+    db_hdr.conf_block_length = conf_block_data.length();
+    if (!DatabaseWriter::write_database_buffer(db, conf_block_data.data(), conf_block_data.size(), ftell, err_msg))
+    {
+        SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));
         return false;
     }
 
@@ -145,26 +154,21 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
         db_hdr.zstd_dictionary_offset = ftell;
         db_hdr.zstd_dictionary_length = dictionary.length();
 
-        if (!Database::write_database_buffer(db, dictionary.data(), dictionary.size(), ftell, err_msg))
+        if (!DatabaseWriter::write_database_buffer(db, dictionary.data(), dictionary.size(), ftell, err_msg))
         {
+            SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));
             return false;
         }
     }
 
-    const std::string &conf_block_data = conf->get_conf_block();
-    if (!Database::write_database_buffer(db, conf_block_data.data(), conf_block_data.size(), ftell))
-    {
-        return false;
-    }
-
     // ---- Parallel build phase ----
 
-    // std::async/std::thread live in libstdc++ + pthread, both of which are
-    // completely normal to fully-static-link -- unlike TBB, which expects to
-    // be a shared library and doesn't reliably support static linkage.
     const auto &path_list = FSScanner::_found_files_paths_cache._id_to_str;
 
-    std::string file_table_err, path_table_err, sym_index_err, trigram_err;
+    std::string file_table_err;
+    std::string path_table_err;
+    std::string sym_index_err;
+    std::string trigram_err;
 
     auto file_table_fut =
         std::async(std::launch::async, [&] { return build_file_table(fsscanner, with_dict, &file_table_err); });
@@ -174,10 +178,6 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
         std::async(std::launch::async, [&] { return build_symbol_index(symtable, with_dict, &sym_index_err); });
     auto trigram_fut = std::async(std::launch::async, [&] { return build_trigram_index(symtable, &trigram_err); });
 
-    // .get() blocks until each is done -- equivalent to parallel_invoke's join,
-    // and (unlike capturing outer variables by reference from each thread)
-    // each result only becomes visible to this thread via the future's
-    // happens-before edge, so there's no question about synchronization.
     auto file_table_built = file_table_fut.get();
     auto path_table_built = path_table_fut.get();
     auto sym_index_built = sym_index_fut.get();
@@ -205,40 +205,57 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
     }
 
     // ---- Sequential commit phase ----
+
     // Fixed order matching the original layout; `ftell` is only touched here.
     auto ft_hdr = commit_file_table(db, ftell, *file_table_built, err_msg);
-    if (!ft_hdr) return false;
+    if (!ft_hdr)
+    {
+        return false;
+    }
     db_hdr.file_table_hdr = *ft_hdr;
 
     auto pt_hdr = commit_path_table(db, ftell, *path_table_built, err_msg);
-    if (!pt_hdr) return false;
+    if (!pt_hdr)
+    {
+        return false;
+    }
     db_hdr.path_table_hdr = *pt_hdr;
 
     auto si_hdr = commit_symbol_index(db, ftell, *sym_index_built, err_msg);
-    if (!si_hdr) return false;
+    if (!si_hdr)
+    {
+        return false;
+    }
     db_hdr.sym_index_hdr = *si_hdr;
 
     auto tg_hdr = commit_trigram_index(db, ftell, *trigram_built, err_msg);
-    if (!tg_hdr) return false;
+    if (!tg_hdr)
+    {
+        return false;
+    }
     db_hdr.trigram_index_hdr = *tg_hdr;
 
     ftell = 0;
-    if (!Database::write_database_buffer(db, &db_hdr, sizeof(Database::DatabaseHeader), ftell))
+    if (!DatabaseWriter::write_database_buffer(db, &db_hdr, sizeof(Database::DatabaseHeader), ftell))
     {
-        return false;
+        return false; // NOLINT
     }
 
     return true;
 }
 
-DatabaseBuilder::DatabaseBuilder(ConfigParserPtr conf, const FSScanner &fsscanner, DictionaryBuilderPtr dict_builder_ptr) noexcept
-    : _conf(std::move(conf)), _fsscanner(fsscanner), _existing_db(_conf->get_database_path()), _dict_builder_ptr(std::move(dict_builder_ptr))
+DatabaseBuilder::DatabaseBuilder(ConfigParserPtr conf,
+                                 const FSScanner &fsscanner,
+                                 DictionaryBuilderPtr dict_builder_ptr) noexcept
+    : _conf(std::move(conf)), _fsscanner(fsscanner), _existing_db(_conf->get_database_path()),
+      _dict_builder_ptr(std::move(dict_builder_ptr))
 {
 }
 
-bool DatabaseBuilder::extract_existing_db(std::string* err_msg) noexcept
+bool DatabaseBuilder::extract_existing_db(std::string *err_msg) noexcept // NOLINT
 {
-    return Database::read_database(_existing_db, err_msg);
+    (void)err_msg;
+    return true;
 }
 
 void DatabaseBuilder::merge_symtables(HashMapList &symtables, HashMap &merged_symtable) noexcept
@@ -270,7 +287,7 @@ void DatabaseBuilder::merge_symtables(HashMapList &symtables, HashMap &merged_sy
     }
 }
 
-bool DatabaseBuilder::build(std::string* err_msg) noexcept
+bool DatabaseBuilder::build(std::string *err_msg) noexcept
 {
     // Using existing database to rebuild database (if exists)
     // bool has_existing_db = extract_existing_db(err_msg);

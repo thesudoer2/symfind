@@ -4,6 +4,7 @@
 
 #include "Config.h"
 #include "DatabaseBuilder.h"
+#include "DatabaseReader.h"
 #include "DictionaryBuilder.h"
 #include "FSScanner.h"
 #include "StringComparator.h"
@@ -327,7 +328,7 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options)
 
     if (options.symbol.empty() && options.running_method != RunningMethod::BUILD_DB)
     {
-        std::cerr << "ERROR: missing symbol argument\n";
+        std::cerr << "ERROR: missing symbol name\n";
         return false;
     }
 
@@ -415,7 +416,17 @@ int main(int argc, char **argv)
     }
     else if ((bool)(options.running_method & READ_DB))
     {
-        asm volatile("nop");
+        std::string err_msg(1024, '\0');
+
+        std::optional<SymFind::DatabaseReader::SymbolLookupResultList> lookup_res_opt =
+            SymFind::DatabaseReader::find_symbol_references(config_parser, options.symbol, &err_msg);
+        if (!lookup_res_opt.has_value())
+        {
+            std::cerr << err_msg << '\n';
+            return 1;
+        }
+
+        SymFind::DatabaseReader::print_symbol_lookup_results(lookup_res_opt.value());
     }
     else if ((bool)(options.running_method & FREE_RUN))
     {

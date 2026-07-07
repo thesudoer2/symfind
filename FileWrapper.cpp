@@ -1,13 +1,14 @@
 #include "FileWrapper.h"
 
+#include <bits/types/error_t.h>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
 
 #include <string>
-#include <tuple>
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "Expected.h"
@@ -116,14 +117,14 @@ expected<FileWrapper::Offset_t, FileWrapper::Errno_t> FileWrapper::seek(FileWrap
                                                                         int destination) noexcept
 {
     // NOLINTNEXTLINE(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
-    Offset_t ret = std::fseek(file._fp.get(), offset, destination);
-    return (ret == -1) ? unexpected<Errno_t>(errno) : expected<Offset_t, Errno_t>(ret);
+    std::int64_t ret = std::fseek(file._fp.get(), offset, destination);
+    return (ret == -1) ? unexpected<Errno_t>(errno) : expected<Offset_t, Errno_t>(static_cast<Offset_t>(ret));
 }
 
 expected<FileWrapper::Offset_t, FileWrapper::Errno_t> FileWrapper::tellp(const FileWrapper &file) noexcept
 {
-    Offset_t ret = std::ftell(file._fp.get());
-    return (ret == -1) ? unexpected<Errno_t>(errno) : expected<Offset_t, Errno_t>(ret);
+    std::int64_t ret = std::ftell(file._fp.get());
+    return (ret == -1) ? unexpected<Errno_t>(errno) : expected<Offset_t, Errno_t>(static_cast<Offset_t>(ret));
 }
 
 bool FileWrapper::read(const FileWrapper &file, void *ptr, size_t len, Offset_t offset) noexcept
@@ -194,18 +195,23 @@ bool FileWrapper::write(const FileWrapper &file, const void *buf, size_t len, Of
     return true;
 }
 
-expected<std::int64_t, FileWrapper::Errno_t> FileWrapper::get_file_size(FileWrapper &file) noexcept
+expected<std::uint64_t, FileWrapper::Errno_t> FileWrapper::get_file_size(FileWrapper &file) noexcept
 {
-    if (!file.is_open())
+    auto fd_ex = file.get_fd();
+    if (!fd_ex.has_value())
     {
-        return unexpected<Errno_t>(-1);
+        return unexpected<Errno_t>(fd_ex.error());
     }
 
-    expected<Offset_t, Errno_t> seek_res = FileWrapper::seek(file, Offset_t(0), SEEK_END);
+    int fd = fd_ex.value(); // NOLINT
 
-    std::ignore = FileWrapper::seek(file, Offset_t(0), SEEK_SET);
+    struct stat st{}; // NOLINT
+    if (::fstat(fd, &st) != 0)
+    {
+        return unexpected<Errno_t>(errno);
+    }
 
-    return seek_res ? expected<std::int64_t, Errno_t>{seek_res.value()} : unexpected<Errno_t>(seek_res.error());
+    return static_cast<std::uint64_t>(st.st_size);
 }
 
 } // namespace SymFind

@@ -30,11 +30,6 @@
 
 #include "Global.h"
 
-// // Sentinel used in TrigramSlot::trigram_code to mark an empty slot.
-// // A real trigram code only ever occupies the low 24 bits, so this value
-// // (all 32 bits set) can never collide with a legitimate code.
-// #define trigram_empty_slot 0xFFFFFFFFU
-
 namespace SymFind
 {
 

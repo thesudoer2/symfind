@@ -35,7 +35,7 @@ private:
 
 public:
     using Errno_t = std::int32_t;
-    using Offset_t = std::int64_t;
+    using Offset_t = std::uint32_t;
 
 public: // NOLINT(readability-redundant-access-specifiers)
     FileWrapper() noexcept;
@@ -80,7 +80,7 @@ public: // NOLINT(readability-redundant-access-specifiers)
 
     static bool write(const FileWrapper &file, const void *buf, size_t len, Offset_t offset) noexcept;
 
-    static expected<std::int64_t, Errno_t> get_file_size(FileWrapper &file) noexcept;
+    static expected<std::uint64_t, Errno_t> get_file_size(FileWrapper &file) noexcept;
 
 private:
     FilePtr _fp{nullptr};

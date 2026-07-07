@@ -36,11 +36,11 @@ public:
                   const CompressionOptions &comp_opts,
                   std::string *err_msg = nullptr) const noexcept;
 
-    bool decompress(void *input,
+    bool decompress(const void *input,
                     std::uint32_t input_size,
                     std::size_t uncompressed_size,
                     std::string &output,
-                    DecompressionOptions &decomp_opts,
+                    const DecompressionOptions &decomp_opts,
                     std::string *err_msg = nullptr) const noexcept;
 
 private:

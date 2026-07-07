@@ -6,6 +6,8 @@
 
 #include <cinttypes>
 
+#include "Global.h"
+
 namespace SymFind
 {
 
@@ -42,7 +44,7 @@ enum class SymbolVisibility : std::uint8_t
     PROTECTED = 0x8,
 };
 
-struct SymbolMetaData
+SYMFIND_PACK(struct SymbolMetaData
 {
     SymbolSourceSection source_section{SymbolSourceSection::UNKNOWN};
     SymbolType type{SymbolType::UNKNOWN};
@@ -50,7 +52,7 @@ struct SymbolMetaData
     SymbolVisibility visibility{SymbolVisibility::UNKNOWN};
     bool is_defined{false};
     std::uint32_t offset{0};
-};
+});
 
 using SymbolName = std::string;
 
@@ -60,13 +62,6 @@ struct SymbolEntry
     SymbolMetaData metadata;
 };
 
-struct SymbolRef
-{
-    std::uint32_t file_id{0}; // reference to FSScanner::found_files entry
-    SymbolMetaData metadata;
-};
-
-using SymbolRefs = std::vector<SymbolRef>;
 using SymbolEntries = std::vector<SymbolEntry>;
 
 std::string symbol_source_section_to_str(SymbolSourceSection sym_sec) noexcept;

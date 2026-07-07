@@ -8,6 +8,7 @@
 
 #include "Config.h"
 #include "Database.h"
+#include "DatabaseBuilderUtils.h"
 #include "DictionaryBuilder.h"
 #include "FSScanner.h"
 #include "Global.h"
@@ -17,9 +18,6 @@
 
 namespace SymFind
 {
-
-using HashMap = ankerl::unordered_dense::map<SymbolName, SymbolRefs, robin_hood::hash<SymbolName>>;
-using HashMapList = std::vector<HashMap>;
 
 class DatabaseBuilder final : NoCopy, NoMove
 {
