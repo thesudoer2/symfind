@@ -1,0 +1,13 @@
+list(APPEND SYMFIND_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/DictionaryBuilder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/StringComparator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/SymFinder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Symbol.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Trigram.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TrigramUtils.cpp
+)
+
+set(SYMFIND_SOURCES
+    ${SYMFIND_SOURCES}
+    PARENT_SCOPE
+)

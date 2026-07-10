@@ -14,8 +14,8 @@
 # Undo ignore for Makefile
 !Makefile
 
-# Plain text files
-*.txt
+# CMake unncessary files
+CMakeUserPresets.json
 
 # Binary files
 *.bin
@@ -28,6 +28,7 @@ Release/
 Debug/
 RelWithDebInfo/
 target/
+build_*/
 
 # Object files
 *.o
