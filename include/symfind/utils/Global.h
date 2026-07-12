@@ -26,3 +26,6 @@
         if ((err_msg_buf) != nullptr)                                                                                  \
             *(err_msg_buf) = err_msg;                                                                                  \
     }
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)

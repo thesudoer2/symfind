@@ -44,7 +44,7 @@ bool DatabaseReader::read_header(std::string *err_msg) noexcept
         return false;
     }
 
-    if (_db_hdr->version != DATABASE_HEADER_VERSION)
+    if (_db_hdr->version != DATABASE_HEADER_VERSION_NUMBER)
     {
         SET_ERR_MSG(err_msg, "DatabaseReader: Bad version!");
         return false;

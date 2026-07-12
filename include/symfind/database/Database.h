@@ -11,7 +11,15 @@
 
 #define DATABASE_HEADER_MAGIC 0x73796D66696E6400ULL // Magic String: "symfind\0"
 
-#define DATABASE_HEADER_VERSION 0x0000100 // Version: 0.1.0
+#define DATABASE_HEADER_VERSION_MAJOR 0
+#define DATABASE_HEADER_VERSION_MINOR 1
+#define DATABASE_HEADER_VERSION_PATCH 0
+
+#define DATABASE_HEADER_VERSION_STR                                                                                    \
+    STR(DATABASE_HEADER_VERSION_MAJOR) "." STR(DATABASE_HEADER_VERSION_MINOR) "." STR(DATABASE_HEADER_VERSION_PATCH)
+
+#define DATABASE_HEADER_VERSION_NUMBER                                                                                                 \
+    ((DATABASE_HEADER_VERSION_MAJOR << 16) | (DATABASE_HEADER_VERSION_MINOR << 8) | DATABASE_HEADER_VERSION_PATCH)
 
 // Sentinel used in TrigramSlot::trigram_code to mark an empty slot.
 // A real trigram code only ever occupies the low 24 bits, so this value

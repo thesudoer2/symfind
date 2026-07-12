@@ -1,4 +1,5 @@
 #include <symfind/config/OptionParser.h>
+#include <symfind/database/Database.h>
 
 namespace SymFind
 {
@@ -11,7 +12,7 @@ void print_help(const char *program_name) noexcept
               << R"( [options] <symbol>
 
 Options:
-    -r, --running-method <)"
+    -m, --running-method <)"
               << RUNNING_METHODS << R"(>
         Choose program's running behavior.
 
@@ -42,11 +43,14 @@ Options:
             runtime -> only runtime/imported symbols
             both    -> show both categories
 
-    --root <path>
-        Set root directory for symbol search.
+    -s,--scan-path <path>
+        Set root directory to search symbols (default is '/').
 
-    -v, --verbose
+    -d, --debug
         Be verbose and show more logs.
+
+    -v, --version
+        Show version number
 
     -h, --help
         Show this help message.
@@ -56,17 +60,19 @@ Examples:
               << R"( malloc
 
     )" << program_name
-              << R"( --search-type regex "std::.*vector"
+              << R"( --search-type regex "std::vector"
 
     )" << program_name
-              << R"( --search-type fuzzy pushbak
+              << R"( --search-type fuzzy stdcout
 
     )" << program_name
-              << R"( --symbol-visibility runtime malloc
-
-    )" << program_name
-              << R"( --root /usr/lib64 printf
+              << R"( --scan-path /usr/ printf
 )";
+}
+
+void show_version(const char *program_name) noexcept
+{
+    std::cout << program_name << " version: " << DATABASE_HEADER_VERSION_STR << '\n';
 }
 
 RunningMethod parse_running_method(const std::string &value) noexcept
@@ -141,12 +147,19 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
         // Help
         if (arg == "-h" || arg == "--help")
         {
-            print_help(argv[0]); // NOLINT
-            std::exit(0);
+            options.print_help = true;
+            continue;
+        }
+
+        // Version
+        if (arg == "-v" || arg == "--version")
+        {
+            options.show_version = true;
+            continue;
         }
 
         // Build Database
-        if (arg == "-r" || arg == "--running-method")
+        if (arg == "-m" || arg == "--running-method")
         {
             if (options.running_method != RunningMethod::NOT_SET)
             {
@@ -218,23 +231,23 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
             continue;
         }
 
-        // root
-        if (arg == "--root")
+        // scan path
+        if (arg == "-s" || arg == "--scan-path")
         {
             if (i + 1 >= argc)
             {
-                std::cerr << "ERROR: --root requires a path\n";
+                std::cerr << "ERROR: -s,--scan-path requires a path\n";
                 return false;
             }
 
-            options.root_path = argv[++i]; // NOLINT
+            options.scan_root_path = argv[++i]; // NOLINT
             continue;
         }
 
         // verbose
-        if (arg == "-v" || arg == "--verbose")
+        if (arg == "-d" || arg == "--debug")
         {
-            options.be_verbose = true;
+            options.debug_mode = true;
         }
 
         // positional symbol
@@ -254,18 +267,32 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
         return false;
     }
 
+    if (options.print_help || options.show_version)
+    {
+        return true;
+    }
+
+    // Set default running mode
     if ((bool)(options.running_method & RunningMethod::NOT_SET))
     {
         options.running_method = RunningMethod::READ_DB;
     }
 
+    // Check input symbol name in non BUILD_DB mode
     if (options.symbol.empty() && options.running_method != RunningMethod::BUILD_DB)
     {
         std::cerr << "ERROR: missing symbol name\n";
         return false;
     }
 
-    // use_debug = options.be_verbose;
+    // Check logic
+    if (!options.scan_root_path.empty() && options.running_method != RunningMethod::FREE_RUN)
+    {
+        std::cerr << "WARNING! When you're not using `FREE_RUN' mode, using custom scan path doesn't make sence!\n";
+        options.scan_root_path.clear();
+    }
+
+    // use_debug = options.debug_mode;
 
     return true;
 }

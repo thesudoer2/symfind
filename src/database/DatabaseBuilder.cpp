@@ -129,7 +129,7 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
 
     Database::DatabaseHeader db_hdr;
     db_hdr.magic = DATABASE_HEADER_MAGIC;
-    db_hdr.version = DATABASE_HEADER_VERSION;
+    db_hdr.version = DATABASE_HEADER_VERSION_NUMBER;
     if (!DatabaseWriter::write_database_buffer(db, &db_hdr, sizeof(Database::DatabaseHeader), ftell))
     {
         SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));

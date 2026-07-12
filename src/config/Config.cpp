@@ -269,6 +269,11 @@ const std::string &ConfigParser::get_database_path() const noexcept
     return _database_path;
 }
 
+void ConfigParser::set_database_scan_path(std::string scan_root_path) noexcept
+{
+    _database_scan_path = std::move(scan_root_path);
+}
+
 const std::string &ConfigParser::get_database_scan_path() const noexcept
 {
     return _database_scan_path;

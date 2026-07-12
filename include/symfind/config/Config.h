@@ -51,6 +51,8 @@ private:
     void generate_conf_block() noexcept;
 
 public:
+    void set_database_scan_path(std::string scan_root_path) noexcept;
+
     __nodiscard bool get_prune_bind_mounts() const noexcept;
     __nodiscard bool get_debug_pruning() const noexcept;
     __nodiscard const std::string &get_database_path() const noexcept;

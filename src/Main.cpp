@@ -1,8 +1,11 @@
-#include <cstdint>
 #include <iostream>
 #include <string>
 
+#include <cstdint>
+#include <cstdlib>
+
 #include <symfind/config/Config.h>
+#include <symfind/database/Database.h>
 #include <symfind/database/DatabaseBuilder.h>
 #include <symfind/database/DatabaseReader.h>
 #include <symfind/core/DictionaryBuilder.h>
@@ -12,6 +15,7 @@
 #include <symfind/core/SymFinder.h>
 #include <symfind/core/Symbol.h>
 
+#define PROGRAM_NAME "symfind"
 
 #define ERR_MSG_DEFAULT_SIZE 1024
 
@@ -37,8 +41,20 @@ int main(int argc, char **argv)
     SymFind::ProgramOptions options;
     if (!parse_arguments(argc, argv, options))
     {
-        SymFind::print_help(argv[0]);
+        SymFind::print_help(PROGRAM_NAME);
         return EXIT_FAILURE;
+    }
+
+    if (options.print_help)
+    {
+        SymFind::print_help(PROGRAM_NAME);
+        return EXIT_SUCCESS;
+    }
+
+    if (options.show_version)
+    {
+        SymFind::show_version(PROGRAM_NAME);
+        return EXIT_SUCCESS;
     }
 
     // Parse configuration file
@@ -50,6 +66,12 @@ int main(int argc, char **argv)
     {
         std::cerr << "Parsing configuration failed: " << err_msg << '\n';
         return 1;
+    }
+
+    // Override some configurations if user has entered equivalent option
+    if (!options.scan_root_path.empty())
+    {
+        config_parser->set_database_scan_path(options.scan_root_path);
     }
 
     // Initialize bind-mount

@@ -47,15 +47,19 @@ struct ProgramOptions
     RunningMethod running_method = RunningMethod::NOT_SET;
     StringComparatorType search_type = StringComparatorType::DEFAULT;
     SymbolDefinitionToPrint visibility = SymbolDefinitionToPrint::ONLY_DEFINED;
-    std::filesystem::path root_path = "/";
+    std::filesystem::path scan_root_path = "/";
     std::string symbol;
-    bool be_verbose = false;
+    bool debug_mode = false;
+    bool show_version = false;
+    bool print_help = false;
 };
 
 
 // -----------------------------------------------------------------------------
 // Implementations
 // -----------------------------------------------------------------------------
+
+void show_version(const char *program_name) noexcept;
 
 void print_help(const char *program_name) noexcept;
 
