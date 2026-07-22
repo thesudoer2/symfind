@@ -1,4 +1,9 @@
 #include <symfind/config/OptionParser.h>
+
+#include <format>
+#include <iostream>
+
+#include <symfind/core/StringComparator.h>
 #include <symfind/database/Database.h>
 
 namespace SymFind
@@ -43,7 +48,7 @@ Options:
             runtime -> only runtime/imported symbols
             both    -> show both categories
 
-    -s,--scan-path <path>
+    -s, --scan-path <path>
         Set root directory to search symbols (default is '/').
 
     -d, --debug
@@ -79,58 +84,58 @@ RunningMethod parse_running_method(const std::string &value) noexcept
 {
     if (value == RUNNING_METHOD_BUILD_DB)
     {
-        return RunningMethod::BUILD_DB;
+        return RunningMethod_BUILD_DB;
     }
     else if (value == RUNNING_METHOD_READ_DB) // NOLINT
     {
-        return RunningMethod::READ_DB;
+        return RunningMethod_READ_DB;
     }
     else if (value == RUNNING_METHOD_FREE_RUN)
     {
-        return RunningMethod::FREE_RUN;
+        return RunningMethod_FREE_RUN;
     }
 
-    return RunningMethod::NOT_SET;
+    return RunningMethod_NOT_SET;
 }
 
 SymbolDefinitionToPrint parse_visibility(const std::string &value) noexcept
 {
     if (value == "defined" || value == "only_defined")
     {
-        return SymbolDefinitionToPrint::ONLY_DEFINED;
+        return SymbolDefinitionToPrint_ONLYDEFINED;
     }
 
     if (value == "runtime" || value == "only_runtime")
     {
-        return SymbolDefinitionToPrint::ONLY_RUNTIME;
+        return SymbolDefinitionToPrint_ONLYRUNTIME;
     }
 
     if (value == "both" || value == "show_both")
     {
-        return SymbolDefinitionToPrint::SHOW_BOTH;
+        return SymbolDefinitionToPrint_SHOWFULL;
     }
 
-    return SymbolDefinitionToPrint::UNKNOWN;
+    return SymbolDefinitionToPrint_UNKNOWN;
 }
 
 StringComparatorType parse_search_type(const std::string &value) noexcept
 {
-    if (value == "default" || value == "simple")
+    if (value == "default")
     {
-        return StringComparatorType::DEFAULT;
+        return StringComparatorType_DEFAULT;
     }
 
     if (value == "regex")
     {
-        return StringComparatorType::REGEX;
+        return StringComparatorType_REGEX;
     }
 
     if (value == "fuzzy")
     {
-        return StringComparatorType::FUZZY;
+        return StringComparatorType_FUZZY;
     }
 
-    return StringComparatorType::UNKNOWN;
+    return StringComparatorType_UNKNOWN;
 }
 
 bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept // NOLINT
@@ -161,7 +166,7 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
         // Build Database
         if (arg == "-m" || arg == "--running-method")
         {
-            if (options.running_method != RunningMethod::NOT_SET)
+            if (options.running_method != RunningMethod_NOT_SET)
             {
                 std::cerr << "ERROR: Multiple running methods entered!\n";
                 return false;
@@ -169,7 +174,7 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
 
             std::string running_method_str = argv[++i]; // NOLINT
             auto parsed_running_method = parse_running_method(running_method_str);
-            if ((bool)(parsed_running_method & RunningMethod::NOT_SET))
+            if ((bool)(parsed_running_method & RunningMethod_NOT_SET))
             {
                 std::cerr << "ERROR: Invalid running method: " << running_method_str << '\n';
                 return false;
@@ -181,14 +186,14 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
         // Shortcut: regex
         if (arg == "-r" || arg == "--regex")
         {
-            options.search_type = StringComparatorType::REGEX;
+            options.search_type = StringComparatorType_REGEX;
             continue;
         }
 
         // Shortcut: fuzzy
         if (arg == "-f" || arg == "--fuzz")
         {
-            options.search_type = StringComparatorType::FUZZY;
+            options.search_type = StringComparatorType_FUZZY;
             continue;
         }
 
@@ -197,14 +202,14 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
         {
             if (i + 1 >= argc)
             {
-                std::cerr << "ERROR: --search-type requires a value\n";
+                std::cerr << "ERROR: --search-type option requires a value\n";
                 return false;
             }
 
             options.search_type = parse_search_type(argv[++i]); // NOLINT
-            if (options.search_type == StringComparatorType::DEFAULT && argv[i] != std::string("default")) // NOLINT
+            if (options.search_type == StringComparatorType_UNKNOWN)
             {
-                std::cerr << "ERROR: invalid --search-type value\n";
+                std::cerr << std::format("ERROR: invalid --search-type value: {}\n", argv[i]); // NOLINT
                 return false;
             }
 
@@ -216,13 +221,13 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
         {
             if (i + 1 >= argc)
             {
-                std::cerr << "ERROR: --symbol-visibility requires a value\n";
+                std::cerr << "ERROR: --symbol-visibility option requires a value\n";
                 return false;
             }
 
             options.visibility = parse_visibility(argv[++i]); // NOLINT
 
-            if (options.visibility == SymbolDefinitionToPrint::UNKNOWN)
+            if (options.visibility == SymbolDefinitionToPrint_UNKNOWN)
             {
                 std::cerr << "ERROR: invalid --symbol-visibility value\n";
                 return false;
@@ -236,7 +241,7 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
         {
             if (i + 1 >= argc)
             {
-                std::cerr << "ERROR: -s,--scan-path requires a path\n";
+                std::cerr << "ERROR: -s, --scan-path option requires a path\n";
                 return false;
             }
 
@@ -273,20 +278,47 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
     }
 
     // Set default running mode
-    if ((bool)(options.running_method & RunningMethod::NOT_SET))
+    if ((bool)(options.running_method & RunningMethod_NOT_SET))
     {
-        options.running_method = RunningMethod::READ_DB;
+        options.running_method = RunningMethod_READ_DB;
     }
 
     // Check input symbol name in non BUILD_DB mode
-    if (options.symbol.empty() && options.running_method != RunningMethod::BUILD_DB)
+    if (options.symbol.empty() && options.running_method != RunningMethod_BUILD_DB)
     {
         std::cerr << "ERROR: missing symbol name\n";
         return false;
     }
 
+    // Log unused options in BUILD_DB mode
+    if (options.running_method == RunningMethod_BUILD_DB)
+    {
+        if (options.search_type != StringComparatorType_NOT_SET)
+        {
+            std::cerr << "WARNING! When you're using `BUILD_DB' mode, using custom search type doesn't make sence!\n";
+        }
+
+        if (options.visibility != SymbolDefinitionToPrint_NOT_SET)
+        {
+            std::cerr << "WARNING! When you're using `BUILD_DB' mode, using custom symbol visibility option doesn't "
+                         "make sence!\n";
+        }
+    }
+
+    // Set default string comparator
+    if ((bool)(options.search_type & StringComparatorType_NOT_SET))
+    {
+        options.search_type = StringComparatorType_DEFAULT;
+    }
+
+    // Set default visibilty option
+    if ((bool)(options.visibility & SymbolDefinitionToPrint_NOT_SET))
+    {
+        options.visibility = SymbolDefinitionToPrint_ONLYDEFINED;
+    }
+
     // Check logic
-    if (!options.scan_root_path.empty() && options.running_method != RunningMethod::FREE_RUN)
+    if (!options.scan_root_path.empty() && options.running_method != RunningMethod_FREE_RUN)
     {
         std::cerr << "WARNING! When you're not using `FREE_RUN' mode, using custom scan path doesn't make sence!\n";
         options.scan_root_path.clear();
@@ -304,14 +336,14 @@ bool symfinder_symbol_should_be_stored(const SymbolEntry &sym_ent,
     if (compare_sym_names(sym_ent.name))
     {
         const auto &sym_metadata = sym_ent.metadata;
-        if (sym_metadata.is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
-                                         def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
+        if (sym_metadata.is_defined && (def_to_print == SymbolDefinitionToPrint_ONLYDEFINED ||
+                                         def_to_print == SymbolDefinitionToPrint_SHOWFULL))
         {
             return true;
         }
 
-        if (sym_metadata.is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
-                                         def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
+        if (sym_metadata.is_defined && (def_to_print == SymbolDefinitionToPrint_ONLYDEFINED ||
+                                         def_to_print == SymbolDefinitionToPrint_SHOWFULL))
         {
             return true;
         }
@@ -328,14 +360,14 @@ bool database_reader_entry_should_be_stored(const SymFind::SymbolEntryView &sym_
     if (compare_sym_names(sym_ent_v.name))
     {
         const auto &sym_metadata = sym_ent_v.metadata;
-        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
-                                         def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
+        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint_ONLYDEFINED ||
+                                         def_to_print == SymbolDefinitionToPrint_SHOWFULL))
         {
             return true;
         }
 
-        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint::ONLY_DEFINED ||
-                                         def_to_print == SymbolDefinitionToPrint::SHOW_BOTH))
+        if (sym_metadata->is_defined && (def_to_print == SymbolDefinitionToPrint_ONLYDEFINED ||
+                                         def_to_print == SymbolDefinitionToPrint_SHOWFULL))
         {
             return true;
         }

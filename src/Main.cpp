@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 
     // Run...
 
-    if ((bool)(options.running_method & SymFind::BUILD_DB))
+    if ((bool)(options.running_method & SymFind::RunningMethod_BUILD_DB))
     {
         std::string err_msg(ERR_MSG_DEFAULT_SIZE, '\0');
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-    else if ((bool)(options.running_method & SymFind::READ_DB))
+    else if ((bool)(options.running_method & SymFind::RunningMethod_READ_DB))
     {
         std::string err_msg(ERR_MSG_DEFAULT_SIZE, '\0');
 
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
         auto ignore_entry = [&string_comparator](const SymFind::SymbolEntryView &sym_ent_v) -> bool {
             // TODO: Take argument to show only "DEFINED" symbols or all symbols.
             return !database_reader_entry_should_be_stored(sym_ent_v,
-                                            SymFind::SymbolDefinitionToPrint::ONLY_DEFINED,
+                                            SymFind::SymbolDefinitionToPrint_ONLYDEFINED,
                                             *string_comparator);
         };
 
@@ -128,14 +128,14 @@ int main(int argc, char **argv)
 
         SymFind::DatabaseReader::print_symbol_lookup_results(lookup_res_opt.value());
     }
-    else if ((bool)(options.running_method & SymFind::FREE_RUN))
+    else if ((bool)(options.running_method & SymFind::RunningMethod_FREE_RUN))
     {
         auto string_comparator = SymFind::make_string_comparator(options.search_type, options.symbol);
 
         auto ignore_symbol = [&string_comparator](const SymFind::SymbolEntry &sym_ent) -> bool {
             // TODO: Take argument to show only "DEFINED" symbols or all symbols.
             return !symfinder_symbol_should_be_stored(sym_ent,
-                                                      SymFind::SymbolDefinitionToPrint::ONLY_DEFINED,
+                                                      SymFind::SymbolDefinitionToPrint_ONLYDEFINED,
                                                       *string_comparator);
         };
 

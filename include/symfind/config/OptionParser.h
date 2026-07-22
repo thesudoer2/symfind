@@ -1,7 +1,6 @@
 #pragma once
 
 #include <filesystem>
-#include <iostream>
 
 #include <cstdint>
 
@@ -26,27 +25,28 @@
 namespace SymFind
 {
 
-enum class SymbolDefinitionToPrint : std::uint8_t
+enum SymbolDefinitionToPrint : std::uint8_t
 {
-    UNKNOWN = 0,
-    ONLY_DEFINED,
-    ONLY_RUNTIME,
-    SHOW_BOTH,
+    SymbolDefinitionToPrint_NOT_SET = 0x00,
+    SymbolDefinitionToPrint_ONLYDEFINED = 0x01,
+    SymbolDefinitionToPrint_ONLYRUNTIME = 0x02,
+    SymbolDefinitionToPrint_SHOWFULL = 0x04,
+    SymbolDefinitionToPrint_UNKNOWN = 0x08,
 };
 
 enum RunningMethod : uint8_t
 {
-    NOT_SET = 0x00,
-    BUILD_DB = 0x02,
-    READ_DB = 0x04,
-    FREE_RUN = 0x08,
+    RunningMethod_NOT_SET = 0x00,
+    RunningMethod_BUILD_DB = 0x02,
+    RunningMethod_READ_DB = 0x04,
+    RunningMethod_FREE_RUN = 0x08,
 };
 
 struct ProgramOptions
 {
-    RunningMethod running_method = RunningMethod::NOT_SET;
-    StringComparatorType search_type = StringComparatorType::DEFAULT;
-    SymbolDefinitionToPrint visibility = SymbolDefinitionToPrint::ONLY_DEFINED;
+    RunningMethod running_method = RunningMethod_NOT_SET;
+    StringComparatorType search_type = StringComparatorType_NOT_SET;
+    SymbolDefinitionToPrint visibility = SymbolDefinitionToPrint_NOT_SET;
     std::filesystem::path scan_root_path = "/";
     std::string symbol;
     bool debug_mode = false;
