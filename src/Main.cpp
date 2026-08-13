@@ -5,15 +5,16 @@
 #include <cstdlib>
 
 #include <symfind/config/Config.h>
-#include <symfind/database/Database.h>
-#include <symfind/database/DatabaseBuilder.h>
-#include <symfind/database/DatabaseReader.h>
-#include <symfind/core/DictionaryBuilder.h>
-#include <symfind/filesystem/FSScanner.h>
 #include <symfind/config/OptionParser.h>
+#include <symfind/core/DictionaryBuilder.h>
 #include <symfind/core/StringComparator.h>
 #include <symfind/core/SymFinder.h>
 #include <symfind/core/Symbol.h>
+#include <symfind/database/Database.h>
+#include <symfind/database/DatabaseBuilder.h>
+#include <symfind/database/DatabaseReader.h>
+#include <symfind/filesystem/FSScanner.h>
+#include <symfind/utils/StoreDeciderUtils.h>
 
 #define PROGRAM_NAME "symfind"
 

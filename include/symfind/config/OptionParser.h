@@ -6,6 +6,7 @@
 
 #include <symfind/core/StringComparator.h>
 #include <symfind/core/Symbol.h>
+#include <symfind/utils/StoreDeciderUtils.h>
 
 #define RUNNING_METHOD_BUILD_DB "build_db"
 #define RUNNING_METHOD_READ_DB "read_db"
@@ -24,15 +25,6 @@
 
 namespace SymFind
 {
-
-enum SymbolDefinitionToPrint : std::uint8_t
-{
-    SymbolDefinitionToPrint_NOT_SET = 0x00,
-    SymbolDefinitionToPrint_ONLYDEFINED = 0x01,
-    SymbolDefinitionToPrint_ONLYRUNTIME = 0x02,
-    SymbolDefinitionToPrint_SHOWFULL = 0x04,
-    SymbolDefinitionToPrint_UNKNOWN = 0x08,
-};
 
 enum RunningMethod : uint8_t
 {
@@ -70,13 +62,5 @@ SymbolDefinitionToPrint parse_visibility(const std::string &value) noexcept;
 StringComparatorType parse_search_type(const std::string &value) noexcept;
 
 bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept;
-
-bool symfinder_symbol_should_be_stored(const SymbolEntry &sym_ent,
-                             SymbolDefinitionToPrint def_to_print,
-                             const StringComparator &compare_sym_names) noexcept;
-
-bool database_reader_entry_should_be_stored(const SymFind::SymbolEntryView &sym_ent_v,
-                                            SymbolDefinitionToPrint def_to_print,
-                                            const StringComparator &compare_sym_names) noexcept;
 
 } // namespace SymFind
