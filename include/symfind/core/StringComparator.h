@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include <cstdint>
+#include <type_traits>
 
 #include <re2/re2.h>
 
@@ -86,11 +87,26 @@ StringComparatorPtr make_string_comparator(StringComparatorType comp_type, Args 
     switch (comp_type)
     {
     case StringComparatorType_DEFAULT:
-        return std::make_unique<DefaultStringComparator>(std::forward<Args>(args)...);
+        if constexpr (std::is_constructible_v<DefaultStringComparator, Args...>)
+        {
+            return std::make_unique<DefaultStringComparator>(std::forward<Args>(args)...);
+        }
+        return nullptr;
+
     case StringComparatorType_REGEX:
-        return std::make_unique<Re2RegexStringComparator>(std::forward<Args>(args)...);
+        if constexpr (std::is_constructible_v<Re2RegexStringComparator, Args...>)
+        {
+            return std::make_unique<Re2RegexStringComparator>(std::forward<Args>(args)...);
+        }
+        return nullptr;
+
     case StringComparatorType_FUZZY:
-        return std::make_unique<FuzzyStringComparator>(std::forward<Args>(args)...);
+        if constexpr (std::is_constructible_v<FuzzyStringComparator, Args...>)
+        {
+            return std::make_unique<FuzzyStringComparator>(std::forward<Args>(args)...);
+        }
+        return nullptr;
+
     default:
         return nullptr;
     }

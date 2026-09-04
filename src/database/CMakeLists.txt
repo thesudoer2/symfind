@@ -1,4 +1,4 @@
-list(APPEND SYMFIND_SOURCES
+target_sources(symfind_objects PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Database.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/DatabaseBuilder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/DatabaseBuilderUtils.cpp
@@ -6,9 +6,4 @@ list(APPEND SYMFIND_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/DatabaseWriter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ZSTDCompressor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ZSTDDictionary.cpp
-)
-
-set(SYMFIND_SOURCES
-    ${SYMFIND_SOURCES}
-    PARENT_SCOPE
 )

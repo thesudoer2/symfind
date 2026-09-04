@@ -1,8 +1,3 @@
-list(APPEND SYMFIND_SOURCES
+target_sources(symfind_objects PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ElfParser.cpp
-)
-
-set(SYMFIND_SOURCES
-    ${SYMFIND_SOURCES}
-    PARENT_SCOPE
 )
