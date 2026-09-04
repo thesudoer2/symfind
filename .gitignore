@@ -29,6 +29,7 @@ Debug/
 RelWithDebInfo/
 target/
 build_*/
+.cache/
 
 # Object files
 *.o

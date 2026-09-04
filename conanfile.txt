@@ -4,6 +4,9 @@ gperftools/2.15
 unordered_dense/4.8.1
 robin-hood-hashing/3.11.5
 zstd/1.5.7
+rapidfuzz/3.3.3
+tl-expected/1.1.0
+nlohmann_json/3.11.3
 
 [tool_requires]
 cmake/3.30.0

@@ -278,7 +278,7 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
     }
 
     // Set default running mode
-    if ((bool)(options.running_method & RunningMethod_NOT_SET))
+    if (options.running_method == RunningMethod_NOT_SET)
     {
         options.running_method = RunningMethod_READ_DB;
     }
@@ -306,13 +306,13 @@ bool parse_arguments(int argc, char **argv, ProgramOptions &options) noexcept //
     }
 
     // Set default string comparator
-    if ((bool)(options.search_type & StringComparatorType_NOT_SET))
+    if (options.search_type == StringComparatorType_NOT_SET)
     {
         options.search_type = StringComparatorType_DEFAULT;
     }
 
     // Set default visibilty option
-    if ((bool)(options.visibility & SymbolDefinitionToPrint_NOT_SET))
+    if (options.visibility == SymbolDefinitionToPrint_NOT_SET)
     {
         options.visibility = SymbolDefinitionToPrint_ONLYDEFINED;
     }

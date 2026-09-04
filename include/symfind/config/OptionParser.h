@@ -47,7 +47,7 @@ struct ProgramOptions
     RunningMethod running_method = RunningMethod_NOT_SET;
     StringComparatorType search_type = StringComparatorType_NOT_SET;
     SymbolDefinitionToPrint visibility = SymbolDefinitionToPrint_NOT_SET;
-    std::filesystem::path scan_root_path = "/";
+    std::filesystem::path scan_root_path{};
     std::string symbol;
     bool debug_mode = false;
     bool show_version = false;

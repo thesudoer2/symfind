@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 
     // Run...
 
-    if ((bool)(options.running_method & SymFind::RunningMethod_BUILD_DB))
+    if (options.running_method == SymFind::RunningMethod_BUILD_DB)
     {
         std::string err_msg(ERR_MSG_DEFAULT_SIZE, '\0');
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-    else if ((bool)(options.running_method & SymFind::RunningMethod_READ_DB))
+    else if (options.running_method == SymFind::RunningMethod_READ_DB)
     {
         std::string err_msg(ERR_MSG_DEFAULT_SIZE, '\0');
 
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 
         SymFind::DatabaseReader::print_symbol_lookup_results(lookup_res_opt.value());
     }
-    else if ((bool)(options.running_method & SymFind::RunningMethod_FREE_RUN))
+    else if (options.running_method == SymFind::RunningMethod_FREE_RUN)
     {
         auto string_comparator = SymFind::make_string_comparator(options.search_type, options.symbol);
 

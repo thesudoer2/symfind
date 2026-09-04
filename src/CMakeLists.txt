@@ -35,4 +35,7 @@ target_link_libraries(${PROGRAM_NAME} PRIVATE
     gperftools::gperftools
     unordered_dense::unordered_dense
     robin_hood::robin_hood
+    rapidfuzz::rapidfuzz
+    tl::expected
+    nlohmann_json::nlohmann_json
 )

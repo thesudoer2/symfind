@@ -10,6 +10,9 @@ find_package(gperftools REQUIRED COMPONENTS tcmalloc_minimal)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(robin_hood CONFIG REQUIRED)
 find_package(ZSTD REQUIRED)
+find_package(rapidfuzz REQUIRED)
+find_package(tl-expected REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # Find libelf library
 find_library(LIBELF_STATIC_LIBRARY

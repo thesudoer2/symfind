@@ -27,7 +27,7 @@ Options:
   -h, --help
       Show this help message and exit.
 
-  -c, --clear
+  -c, --clear, --clean
       Delete build directory for the selected build type and exit.
 
   -b, --build_type=TYPE
@@ -58,7 +58,7 @@ do
             exit 0
             ;;
 
-        -c|--clear)
+        -c|--clear|--clean)
             DO_CLEAR=1
             shift
             ;;
