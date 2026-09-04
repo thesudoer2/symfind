@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstring>
 
+#include <format>
+
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -21,6 +23,12 @@ MappedFile::~MappedFile() noexcept = default;
 bool MappedFile::open(const std::string &path, std::string *err_msg) noexcept
 {
     _db_file.open(path, "r");
+
+    if (!_db_file)
+    {
+        SET_ERR_MSG(err_msg, std::format("{}: {}", std::strerror(_db_file.get_errno()), path));
+        return false;
+    }
 
     // Read file size
     auto size_ex = FileWrapper::get_file_size(_db_file);

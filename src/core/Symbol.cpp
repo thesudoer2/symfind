@@ -12,9 +12,9 @@ std::string symbol_source_section_to_str(SymbolSourceSection sym_sec) noexcept
     case SymbolSourceSection::UNKNOWN:
         return "UNKNOWN";
     case SymbolSourceSection::SYMTAB:
-        return "SYMTAB";
+        return "SYMTABLE";
     case SymbolSourceSection::DYNSYM:
-        return "DYNSYM";
+        return "DYNAMIC_SYMTABLE";
     default:
         return "INVALID";
     }
@@ -28,14 +28,14 @@ std::string symbol_type_to_str(SymbolType sym_type) noexcept
     {
     case SymbolType::UNKNOWN:
         return "UNKNOWN";
-    case SymbolType::NODEF:
-        return "NODEF";
-    case SymbolType::OBJSYM:
-        return "OBJSYM";
+    case SymbolType::NO_TYPE:
+        return "NO_TYPE";
+    case SymbolType::DATA_OBJ:
+        return "DATA";
     case SymbolType::FUNC:
-        return "FUNC";
-    case SymbolType::SECSYM:
-        return "SECSYM";
+        return "FUNCTION";
+    case SymbolType::RELOC_SYM:
+        return "RELOCATION_SYMBOL";
     default:
         return "INVALID";
     }

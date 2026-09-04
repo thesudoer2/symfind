@@ -21,10 +21,11 @@ enum class SymbolSourceSection : std::uint8_t
 enum class SymbolType : std::uint8_t
 {
     UNKNOWN = 0x00,
-    NODEF = 0x01,
-    OBJSYM = 0x02,
-    FUNC = 0x04,
-    SECSYM = 0x08,
+    NO_TYPE = 0x01,
+    DATA_OBJ = 0x02,
+    FUNC = 0x03,
+    RELOC_SYM = 0x04,
+    FILE_SYM = 0x5,
 };
 
 enum class SymbolBind : std::uint8_t
@@ -32,7 +33,7 @@ enum class SymbolBind : std::uint8_t
     UNKNOWN = 0x00,
     LOCAL = 0x01,
     GLOBAL = 0x02,
-    WEAK = 0x04,
+    WEAK = 0x03,
 };
 
 enum class SymbolVisibility : std::uint8_t
@@ -40,17 +41,17 @@ enum class SymbolVisibility : std::uint8_t
     UNKNOWN = 0x00,
     DEFAULT = 0x01,
     INTERNAL = 0x02,
-    HIDDEN = 0x04,
-    PROTECTED = 0x8,
+    HIDDEN = 0x03,
+    PROTECTED = 0x04,
 };
 
 SYMFIND_PACK(struct SymbolMetaData
 {
+    bool is_defined{false};
     SymbolSourceSection source_section{SymbolSourceSection::UNKNOWN};
     SymbolType type{SymbolType::UNKNOWN};
     SymbolBind bind{SymbolBind::UNKNOWN};
     SymbolVisibility visibility{SymbolVisibility::UNKNOWN};
-    bool is_defined{false};
     std::uint32_t offset{0};
 });
 

@@ -47,19 +47,34 @@ void worker(const FileIDList &file_ids,
             // TODO: Take argument to show only "DEFINED" symbols or all symbols.
             // if (sym.name == target_sym_name && sym.metadata.is_defined)
             {
+                std::string sym_is_defined = sym.metadata.is_defined ? "DEFINED" : "UNDEFINED";
                 std::string sym_bind = SymFind::symbol_bind_to_str(sym.metadata.bind);
                 std::string sym_type = SymFind::symbol_type_to_str(sym.metadata.type);
-                std::string sym_is_defined = sym.metadata.is_defined ? "DEFINED" : "RUNTIME";
+                std::string sym_visibility = SymFind::symbol_visibility_to_str(sym.metadata.visibility);
                 std::string sym_src_sec = SymFind::symbol_source_section_to_str(sym.metadata.source_section);
 
                 std::cout << file_path << ":\n";
                 std::cout << std::format(
-                    "\tsym_name: {}\t\tsym_is_defined: {}\t\tsym_src_sec: {}\t\t sym_type: {}\t\tsym_bind: {}\n\n",
+                    "\t{}sym_name:{} {} | {}DEF:{} {} | {}SRC SECTION:{} {} | {}TYPE:{} {} | {}BIND:{} {} | {}VISIBILITY:{} {}\n\n",
+                    COLOR_YELLOW,
+                    COLOR_RESET,
                     sym.name,
+                    COLOR_YELLOW,
+                    COLOR_RESET,
                     sym_is_defined,
+                    COLOR_YELLOW,
+                    COLOR_RESET,
                     sym_src_sec,
+                    COLOR_YELLOW,
+                    COLOR_RESET,
                     sym_type,
-                    sym_bind);
+                    COLOR_YELLOW,
+                    COLOR_RESET,
+                    sym_bind,
+                    COLOR_YELLOW,
+                    COLOR_RESET,
+                    sym_visibility
+                );
             }
         }
 

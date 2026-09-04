@@ -400,19 +400,34 @@ void DatabaseReader::print_symbol_lookup_results(const SymbolLookupResultList &r
     {
         for (const auto& sym_ref : res.references)
         {
-            std::string sym_bind = symbol_bind_to_str(sym_ref.metadata.bind);
-            std::string sym_type = symbol_type_to_str(sym_ref.metadata.type);
-            std::string sym_is_defined = sym_ref.metadata.is_defined ? "DEFINED" : "RUNTIME";
-            std::string sym_src_sec = symbol_source_section_to_str(sym_ref.metadata.source_section);
+            std::string sym_is_defined = sym_ref.metadata.is_defined ? "DEFINED" : "UNDEFINED";
+            std::string sym_bind = SymFind::symbol_bind_to_str(sym_ref.metadata.bind);
+            std::string sym_type = SymFind::symbol_type_to_str(sym_ref.metadata.type);
+            std::string sym_visibility = SymFind::symbol_visibility_to_str(sym_ref.metadata.visibility);
+            std::string sym_src_sec = SymFind::symbol_source_section_to_str(sym_ref.metadata.source_section);
 
             std::cout << sym_ref.full_path << ":\n";
             std::cout << std::format(
-                "\tsym_name: {}\t\tsym_is_defined: {}\t\tsym_src_sec: {}\t\t sym_type: {}\t\tsym_bind: {}\n\n",
+                "\t{}sym_name:{} {} | {}DEF:{} {} | {}SRC SECTION:{} {} | {}TYPE:{} {} | {}BIND:{} {} | {}VISIBILITY:{} {}\n\n",
+                COLOR_YELLOW,
+                COLOR_RESET,
                 res.symbol_name,
+                COLOR_YELLOW,
+                COLOR_RESET,
                 sym_is_defined,
+                COLOR_YELLOW,
+                COLOR_RESET,
                 sym_src_sec,
+                COLOR_YELLOW,
+                COLOR_RESET,
                 sym_type,
-                sym_bind);
+                COLOR_YELLOW,
+                COLOR_RESET,
+                sym_bind,
+                COLOR_YELLOW,
+                COLOR_RESET,
+                sym_visibility
+            );
         }
     }
 }

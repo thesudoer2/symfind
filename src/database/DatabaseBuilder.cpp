@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <future>
 #include <iostream>
+#include <format>
 
 #include <cstdint>
 
@@ -120,7 +121,7 @@ bool DatabaseBuilder::store_db(const FSScanner &fsscanner,
     DatabaseWriter db(db_path); // NOLINT
     if (!db)
     {
-        SET_ERR_MSG(err_msg, std::strerror(db.get_errno()));
+        SET_ERR_MSG(err_msg, std::format("{}: {}", std::strerror(db.get_errno()), db_path));
         return false;
     }
 

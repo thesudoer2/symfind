@@ -29,3 +29,8 @@
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
+
+// COLORS
+#define COLOR_YELLOW "\033[33m"
+#define COLOR_CYAN "\033[36m"
+#define COLOR_RESET "\033[0;0m"

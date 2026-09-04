@@ -98,13 +98,15 @@ SymbolType get_symbol_type(std::uint8_t sym_info) noexcept
     switch (sym_type)
     {
     case STT_NOTYPE:
-        return SymbolType::NODEF;
+        return SymbolType::NO_TYPE;
     case STT_FUNC:
         return SymbolType::FUNC;
-    case STT_SECTION:
-        return SymbolType::SECSYM;
     case STT_OBJECT:
-        return SymbolType::OBJSYM;
+        return SymbolType::DATA_OBJ;
+    case STT_SECTION:
+        return SymbolType::RELOC_SYM;
+    case STT_FILE:
+        return SymbolType::FILE_SYM;
     default:
         return SymbolType::UNKNOWN;
     }
@@ -123,6 +125,24 @@ SymbolBind get_symbol_bind(std::uint8_t sym_info) noexcept
         return SymbolBind::GLOBAL;
     default:
         return SymbolBind::UNKNOWN;
+    }
+}
+
+SymbolVisibility get_symbol_visibility(std::uint8_t sym_info) noexcept
+{
+    unsigned char sym_vis = ELF64_ST_VISIBILITY(sym_info);
+    switch (sym_vis)
+    {
+    case STV_DEFAULT:
+        return SymbolVisibility::DEFAULT;
+    case STV_INTERNAL:
+        return SymbolVisibility::INTERNAL;
+    case STV_HIDDEN:
+        return SymbolVisibility::HIDDEN;
+    case STV_PROTECTED:
+        return SymbolVisibility::PROTECTED;
+    default:
+        return SymbolVisibility::UNKNOWN;
     }
 }
 
@@ -162,11 +182,11 @@ void parse_symtable(ElfPtr elf,
 
         // NOLINTNEXTLINE(bugprone-unhandled-exception-at-new)
         SymbolMetaData sym_metadata{
+            .is_defined = is_symbol_defined(sym),
             .source_section = sec,
             .type = get_symbol_type(sym.st_info),
             .bind = get_symbol_bind(sym.st_info),
-            .visibility = SymbolVisibility::UNKNOWN, // TODO: Set symbol visitility.
-            .is_defined = is_symbol_defined(sym),
+            .visibility = get_symbol_visibility(sym.st_other),
             .offset = 0, // TODO: Get symbol offset.
         };
 

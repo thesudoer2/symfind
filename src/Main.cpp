@@ -1,19 +1,21 @@
 #include <iostream>
+#include <format>
 #include <string>
 
 #include <cstdint>
 #include <cstdlib>
 
 #include <symfind/config/Config.h>
+#include <symfind/config/OptionParser.h>
+#include <symfind/core/DictionaryBuilder.h>
+#include <symfind/core/StringComparator.h>
+#include <symfind/core/Symbol.h>
+#include <symfind/core/SymFinder.h>
 #include <symfind/database/Database.h>
 #include <symfind/database/DatabaseBuilder.h>
 #include <symfind/database/DatabaseReader.h>
-#include <symfind/core/DictionaryBuilder.h>
 #include <symfind/filesystem/FSScanner.h>
-#include <symfind/config/OptionParser.h>
-#include <symfind/core/StringComparator.h>
-#include <symfind/core/SymFinder.h>
-#include <symfind/core/Symbol.h>
+#include <symfind/utils/Timer.h>
 
 #define PROGRAM_NAME "symfind"
 
@@ -32,11 +34,24 @@ constexpr const char *config_path = DEFAULT_CONFIG_PATH;
 constexpr const char *config_path("/etc/symfind/symfind.conf");
 #endif
 
+void print_elapsed_time(std::string duration)
+{
+    std::cout << std::format("{}Elapsed Time:{} {}\n",
+        COLOR_CYAN,
+        COLOR_RESET,
+        duration
+    );
+}
+
 } // namespace
 
 
 int main(int argc, char **argv)
 {
+    // Start timer
+    SymFind::Timer timer;
+    timer.start();
+
     // Parse user input options
     SymFind::ProgramOptions options;
     if (!parse_arguments(argc, argv, options))
@@ -103,6 +118,9 @@ int main(int argc, char **argv)
             std::cout << err_msg << '\n';
             return 1;
         }
+
+        std::cout << "Database created successfully!\n";
+        print_elapsed_time(timer.duration());
     }
     else if (options.running_method == SymFind::RunningMethod_READ_DB)
     {
@@ -127,6 +145,8 @@ int main(int argc, char **argv)
         }
 
         SymFind::DatabaseReader::print_symbol_lookup_results(lookup_res_opt.value());
+
+        print_elapsed_time(timer.duration());
     }
     else if (options.running_method == SymFind::RunningMethod_FREE_RUN)
     {
@@ -140,6 +160,8 @@ int main(int argc, char **argv)
         };
 
         SymFind::SymFinder symfinder(config_parser, fsscanner, ignore_symbol);
+
+        print_elapsed_time(timer.duration());
     }
 
     return 0;
