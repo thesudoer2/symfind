@@ -76,7 +76,7 @@ static void BM_SingleQuery_Naive(benchmark::State& state) {
 }
 BENCHMARK(BM_SingleQuery_Naive);
 
-// 3. Batch queries — vary batch size to show scaling
+// 3. Batch queries - vary batch size to show scaling
 template<const std::vector<std::string>* Files>
 static void BM_Batch_AhoCorasickHashMap(benchmark::State& state) {
     for (auto _ : state) {

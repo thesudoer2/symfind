@@ -132,8 +132,8 @@ AhoCorasickHashMap buildMatcherHashMap()
     AhoCorasickHashMap ac;
     for (const auto &ext : kExtensions)
     {
-        ac.insertEndAnchored(ext); // ".so", ".a", ".o"  — end-anchored
-        ac.insertMid(ext + ".");   // ".so.", ".a.", ".o." — mid-string
+        ac.insertEndAnchored(ext); // ".so", ".a", ".o"  - end-anchored
+        ac.insertMid(ext + ".");   // ".so.", ".a.", ".o." - mid-string
     }
     ac.build();
     return ac;
@@ -341,13 +341,13 @@ public:
 
     // Core matcher: scan filename right-to-left
     //
-    // Phase 1 — Pre-scan: skip version suffix [0-9.]  e.g. ".6.1" in "libc.so.6.1"
+    // Phase 1 - Pre-scan: skip version suffix [0-9.]  e.g. ".6.1" in "libc.so.6.1"
     //           Stop as soon as a non-digit, non-dot character is seen.
     //           This is where the extension candidate ends (right side).
     //
-    // Phase 2 — AC run: feed characters into the reversed automaton.
+    // Phase 2 - AC run: feed characters into the reversed automaton.
     //           The moment we hit a match state we know a full extension was
-    //           consumed — return true immediately (early exit).
+    //           consumed - return true immediately (early exit).
     //           Stop at '/' or start-of-string (no extension can cross a separator).
     bool matches(const std::string &filename) const
     {
@@ -372,7 +372,7 @@ public:
         {
             unsigned char c = filename[i];
 
-            // A path separator means we've left the filename component — stop
+            // A path separator means we've left the filename component - stop
             if (c == '/')
                 break;
 
