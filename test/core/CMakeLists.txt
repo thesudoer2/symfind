@@ -1,5 +1,8 @@
 list(APPEND SYMFIND_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/StringComparatorTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DictionaryBuilderTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TrigramTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TrigramUtilsTest.cpp
 )
 
 set(SYMFIND_TEST_SOURCES
