@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <vector>
-#include <algorithm>
 
 #include <symfind/core/Trigram.h>
 #include <symfind/core/TrigramUtils.h>
@@ -98,7 +99,7 @@ TEST(TrigramBuilderTest, TrigramSetMatchesForEachTrigram)
 
     std::vector<TrigramCode> expected;
     for_each_trigram("hello", [&](TrigramCode c) { expected.push_back(c); });
-    std::sort(expected.begin(), expected.end());
+    std::ranges::sort(expected);
     expected.erase(std::unique(expected.begin(), expected.end()), expected.end());
 
     const auto &map = builder.get_trigram_to_symbols();
@@ -106,7 +107,7 @@ TEST(TrigramBuilderTest, TrigramSetMatchesForEachTrigram)
     actual.reserve(map.size());
     for (const auto &[code, _] : map)
         actual.push_back(code);
-    std::sort(actual.begin(), actual.end());
+    std::ranges::sort(actual);
 
     EXPECT_EQ(actual, expected);
 }
@@ -143,7 +144,7 @@ TEST(TrigramBuilderTest, WordWithAllSameTrigramsDedups)
     // Let's compute expected by deduplicating for_each output
     std::vector<TrigramCode> raw;
     for_each_trigram("aaaaa", [&](TrigramCode c) { raw.push_back(c); });
-    std::sort(raw.begin(), raw.end());
+    std::ranges::sort(raw);
     raw.erase(std::unique(raw.begin(), raw.end()), raw.end());
 
     EXPECT_EQ(builder.unique_trigram_count(), raw.size());
@@ -230,7 +231,7 @@ TEST(TrigramBuilderTest, OverlappingWordsShareSomeTrigrams)
     // At least the hello-prefix trigrams must be shared.
     std::vector<TrigramCode> hello_codes;
     for_each_trigram("hello", [&](TrigramCode c) { hello_codes.push_back(c); });
-    std::sort(hello_codes.begin(), hello_codes.end());
+    std::ranges::sort(hello_codes);
     hello_codes.erase(std::unique(hello_codes.begin(), hello_codes.end()), hello_codes.end());
 
     const auto &map = builder.get_trigram_to_symbols();

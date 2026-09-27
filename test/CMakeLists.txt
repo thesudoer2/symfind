@@ -19,6 +19,7 @@ set(SYMFIND_TEST_SOURCES
 
 add_subdirectory(core)
 add_subdirectory(utils)
+add_subdirectory(database)
 
 # Create the executable
 add_executable(${TEST_BINARY_NAME}

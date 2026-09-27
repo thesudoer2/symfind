@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -48,7 +49,7 @@ int dir_path_cmp(const std::string &a, const std::string &b)
 
 void string_list_dir_path_sort(std::vector<std::string> &list)
 {
-    std::sort(list.begin(), list.end(), [](const std::string &a, const std::string &b) {
+    std::ranges::sort(list, [](const std::string &a, const std::string &b) {
         return dir_path_cmp(a, b) < 0;
     });
 }

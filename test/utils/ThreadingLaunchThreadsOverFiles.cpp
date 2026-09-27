@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <mutex>
 #include <numeric>
+#include <ranges>
 #include <vector>
 
 namespace SymFind
@@ -44,7 +45,7 @@ std::vector<std::uint32_t> flatten_and_sort_ids(const std::vector<CapturedCall> 
     {
         all_ids.insert(all_ids.end(), call.file_ids.begin(), call.file_ids.end());
     }
-    std::sort(all_ids.begin(), all_ids.end());
+    std::ranges::sort(all_ids);
     return all_ids;
 }
 
@@ -105,7 +106,7 @@ TEST(LaunchThreadsOverFilesTest, RemainderIsDistributedOneEachToEarliestThreads)
     {
         sizes.push_back(call.file_ids.size());
     }
-    std::sort(sizes.rbegin(), sizes.rend()); // descending, since order across threads isn't guaranteed
+    std::ranges::sort(sizes, std::greater{}); // descending, since order across threads isn't guaranteed
     EXPECT_EQ(sizes, (std::vector<std::size_t>{4, 3, 3}));
 }
 
